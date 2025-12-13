@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.toArgb
 import kotlin.math.*
 
 /**
@@ -381,12 +382,12 @@ fun CompassView(
                     drawContext.canvas.nativeCanvas.apply {
                         save()
                         translate(textX, textY)
-                        android.graphics.Paint().apply {
+                        val paint = android.graphics.Paint().apply {
                             textAlign = android.graphics.Paint.Align.CENTER
                             textSize = compassTextSizePx
-                            this.color = color.toArgb()
-                            drawText(label, 0f, 0f, this)
+                            color = color.toArgb()
                         }
+                        drawText(label, 0f, 0f, paint)
                         restore()
                     }
                 }
