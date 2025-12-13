@@ -273,6 +273,7 @@ fun CompassView(
     val borderWidthPx = with(density) { 3.dp.toPx() }
     val arrowStrokeWidthPx = with(density) { 4.dp.toPx() }
     val arrowHeadSizePx = with(density) { 15.dp.toPx() }
+    val compassTextSizePx = with(density) { 32.sp.toPx() }
 
     Card(
         modifier = modifier,
@@ -382,7 +383,7 @@ fun CompassView(
                         translate(textX, textY)
                         android.graphics.Paint().apply {
                             textAlign = android.graphics.Paint.Align.CENTER
-                            textSize = 32.sp.toPx()
+                            textSize = compassTextSizePx
                             this.color = color.toArgb()
                             drawText(label, 0f, 0f, this)
                         }
