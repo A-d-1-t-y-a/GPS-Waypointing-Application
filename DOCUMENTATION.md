@@ -22,7 +22,11 @@ The application follows a modular architecture with clear separation of concerns
 ### MainActivity.kt
 
 #### `onCreate(savedInstanceState: Bundle?)`
-Initializes the activity and sets up the core components of the application. This method creates instances of LocationService and WaypointRepository, loads previously saved waypoints from storage, requests location permissions if not already granted, and sets up the Compose UI with the main screen. It serves as the primary initialization point for the entire application.
+Initializes the activity and sets up the core components of the application. This method is the starting point of the Android application lifecycle. It performs several critical initialization steps. First, it creates instances of LocationService and WaypointRepository, which are essential for the application's functionality. The LocationService is responsible for managing GPS interactions, while the WaypointRepository handles the persistent storage of waypoint data. 
+
+After initializing these services, the method proceeds to load any previously saved waypoints from the internal storage by calling the `loadWaypoints()` method on the repository. This ensures that the user's data is preserved across application restarts. Following this, the method checks for the necessary location permissions. If the `ACCESS_FINE_LOCATION` permission has not been granted, it uses the registered activity result launcher to request this permission from the user. This is a crucial step to ensure that the application can access high-accuracy GPS data required for navigation.
+
+Finally, the method sets up the user interface using Jetpack Compose. It calls `setContent` and applies the `GPSWaypointingTheme`. Inside the theme, a `Surface` container is created to hold the `MainScreen` composable, which is the primary UI component of the application. The `MainScreen` is passed the initialized `compassState`, `locationService`, and `waypointRepository` objects, effectively injecting these dependencies into the UI layer. This setup ensures that the UI has access to all necessary data and services to function correctly.
 
 #### `onDestroy()`
 Handles cleanup when the activity is destroyed. This method ensures that GPS tracking is properly stopped to prevent resource leaks and unnecessary battery consumption. It calls the stopTracking method on the LocationService to remove location listeners.
@@ -80,7 +84,15 @@ Automatically selects the previous waypoint in the list when the user reaches th
 The primary UI composable that orchestrates all screen elements. This function sets up sensor listeners for device orientation, manages GPS tracking lifecycle, and displays the complete user interface including the compass view, control buttons, waypoint selection UI, and information displays. It handles the integration between sensor data, location services, and user interactions.
 
 #### `CompassView(compassState, modifier)`
-Custom composable that renders the interactive compass display using a Canvas. This function draws the compass background, directional labels (N, S, E, W) with North highlighted in red, waypoint circles positioned based on their distance and bearing, a navigation arrow pointing to the selected waypoint, and handles touch interactions for waypoint selection and pinch-to-zoom gestures. The compass rotates based on device orientation to always show the correct direction relative to the user's facing direction.
+Custom composable that renders the interactive compass display using a Canvas. This function is the core visualization component of the application. It creates a custom drawing surface where the compass and waypoints are rendered. The view is designed to be square, ensuring a correct aspect ratio for the compass.
+
+Inside the canvas, the drawing operations are performed relative to the center of the view. The function first calculates the dimensions and center point of the canvas. It then saves the current canvas state and applies a rotation transformation based on the device's current compass heading. This ensures that the compass always points North relative to the user's orientation.
+
+The function draws the compass background and the four cardinal directions (N, S, E, W). The 'N' label is drawn in red to clearly indicate North, while the other directions are drawn in black. This visual distinction helps users quickly orient themselves.
+
+Crucially, the function iterates through the list of waypoints and draws them as colored circles on the canvas. The position of each waypoint is calculated based on its distance and bearing from the user's current location, scaled according to the current zoom level. Waypoints that are currently selected are highlighted with a distinct red color and a yellow border, providing visual feedback to the user.
+
+A green navigation arrow is also drawn, pointing from the center of the compass towards the currently selected waypoint. This arrow guides the user in the correct direction. The function also handles touch input, detecting tap gestures to select waypoints and pinch gestures to zoom the view in and out. This interactivity is essential for a smooth user experience.
 
 ## Data Flow
 
@@ -108,7 +120,7 @@ The compass uses the device's rotation vector sensor to determine orientation. T
 The compass view supports two types of touch interactions: tap gestures for selecting waypoints by touching their circles on the canvas, and pinch gestures for adjusting the scale between 500 meters and 2 kilometers. Touch coordinates are transformed to account for compass rotation to ensure accurate waypoint selection.
 
 ### Auto-Navigation
-When the user gets within 10 meters of the currently selected waypoint, the application automatically selects the previous waypoint in the list. This enables seamless navigation back through waypoints in reverse order, which is the primary use case for the application.
+The application features an intelligent auto-navigation system designed to simplify the user's journey. When the user gets within 10 meters of the currently selected waypoint, the application automatically selects the previous waypoint in the list. This logic is implemented within the location update listener. It continuously checks the distance between the user's current location and the selected waypoint. If this distance falls below the 10-meter threshold, and there is a previous waypoint available (i.e., the current waypoint is not the first one), the system updates the selection to the preceding waypoint. This enables a seamless navigation experience, allowing the user to retrace their steps back to the starting point without needing to manually interact with the device at each waypoint. This "hands-free" progression is particularly useful during hiking or orienteering activities where the user's hands might be occupied.
 
 ## Conclusion
 
