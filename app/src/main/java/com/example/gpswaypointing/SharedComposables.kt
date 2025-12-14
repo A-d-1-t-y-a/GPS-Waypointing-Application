@@ -26,11 +26,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.nativeCanvas
 import kotlin.math.*
 
 /**
  * Main screen composable that contains all UI elements.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     compassState: CompassState,
@@ -43,7 +45,7 @@ fun MainScreen(
     }
 
     // Setup rotation vector sensor listener
-    LaunchedEffect(Unit) {
+    DisposableEffect(Unit) {
         val rotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
@@ -346,7 +348,7 @@ fun CompassView(
             val radius = min(size.width, size.height) / 2
 
             // Save canvas state
-            save()
+            drawContext.canvas.save()
 
             // Rotate canvas based on device orientation
             rotate(
@@ -385,7 +387,7 @@ fun CompassView(
                         val paint = android.graphics.Paint().apply {
                             textAlign = android.graphics.Paint.Align.CENTER
                             textSize = compassTextSizePx
-                            color = color.toArgb()
+                            setColor(color.toArgb())
                         }
                         drawText(label, 0f, 0f, paint)
                         restore()
@@ -475,7 +477,7 @@ fun CompassView(
             }
 
             // Restore canvas state
-            restore()
+            drawContext.canvas.restore()
         }
     }
 }
