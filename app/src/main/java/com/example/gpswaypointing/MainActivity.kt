@@ -10,33 +10,31 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.example.gpswaypointing.ui.theme.GPSWaypointingTheme
+import com.example.gpswaypointing.data.WaypointRepository
+import com.example.gpswaypointing.service.LocationService
+import com.example.gpswaypointing.service.SensorService
 
 /**
- * Main activity that serves as the entry point for the GPS waypointing application.
- * Handles permission requests and sets up the Compose UI.
+ * Main activity - simplified entry point that sets up services and UI.
  */
 class MainActivity : ComponentActivity() {
     private lateinit var locationService: LocationService
+    private lateinit var sensorService: SensorService
     private lateinit var waypointRepository: WaypointRepository
-    private val compassState = CompassState()
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
-        if (isGranted) {
-            // Permission granted, can start tracking if needed
-        }
+        // Permission result handled
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Initialize services
         locationService = LocationService(this)
+        sensorService = SensorService(this)
         waypointRepository = WaypointRepository(this)
-
-        // Load saved waypoints
-        compassState.waypoints = waypointRepository.loadWaypoints()
 
         // Request location permission if not granted
         if (!locationService.hasLocationPermission()) {
@@ -49,19 +47,14 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen(
-                        compassState = compassState,
+                    CompassScreen(
                         locationService = locationService,
+                        sensorService = sensorService,
                         waypointRepository = waypointRepository
                     )
                 }
             }
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        locationService.stopTracking()
     }
 }
 

@@ -1,4 +1,4 @@
-package com.example.gpswaypointing
+package com.example.gpswaypointing.service
 
 import android.Manifest
 import android.content.Context
@@ -7,15 +7,17 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 
 /**
- * Service class for managing GPS location updates.
- * Handles location permission checks and provides location updates via callback.
+ * Service for managing GPS location updates using Kotlin Flow.
+ * Provides reactive location updates every 5 seconds.
  */
 class LocationService(private val context: Context) {
     private val locationManager: LocationManager =
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    private var locationListener: LocationListener? = null
     private val updateInterval: Long = 5000 // 5 seconds
 
     /**
@@ -29,17 +31,18 @@ class LocationService(private val context: Context) {
     }
 
     /**
-     * Starts GPS tracking with location updates every 5 seconds.
-     * Calls the provided callback with each location update.
+     * Provides a Flow of location updates every 5 seconds.
+     * Automatically handles listener registration and cleanup.
      */
-    fun startTracking(onLocationUpdate: (Location) -> Unit) {
+    fun getLocationUpdates(): Flow<Location> = callbackFlow {
         if (!hasLocationPermission()) {
-            return
+            close()
+            return@callbackFlow
         }
 
-        locationListener = object : LocationListener {
+        val listener = object : LocationListener {
             override fun onLocationChanged(location: Location) {
-                onLocationUpdate(location)
+                trySend(location)
             }
         }
 
@@ -48,25 +51,20 @@ class LocationService(private val context: Context) {
                 LocationManager.GPS_PROVIDER,
                 updateInterval,
                 0f,
-                locationListener!!
+                listener
             )
         } catch (e: SecurityException) {
-            e.printStackTrace()
+            close(e)
+            return@callbackFlow
         }
-    }
 
-    /**
-     * Stops GPS tracking and removes the location listener.
-     */
-    fun stopTracking() {
-        locationListener?.let {
+        awaitClose {
             try {
-                locationManager.removeUpdates(it)
+                locationManager.removeUpdates(listener)
             } catch (e: SecurityException) {
                 e.printStackTrace()
             }
         }
-        locationListener = null
     }
 
     /**
