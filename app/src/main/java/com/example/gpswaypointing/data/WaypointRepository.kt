@@ -3,18 +3,17 @@ package com.example.gpswaypointing.data
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 
 /**
- * Repository for managing waypoint persistence using Kotlinx Serialization.
+ * Repository for managing waypoint persistence using standard org.json.
  * Handles reading and writing waypoints to internal storage.
  */
 class WaypointRepository(private val context: Context) {
     private val fileName = "waypoints.json"
-    private val json = Json { prettyPrint = true }
 
     /**
      * Saves the list of waypoints to internal storage.
@@ -22,10 +21,18 @@ class WaypointRepository(private val context: Context) {
      */
     suspend fun saveWaypoints(waypoints: List<Waypoint>) = withContext(Dispatchers.IO) {
         try {
+            val jsonArray = JSONArray()
+            waypoints.forEach { waypoint ->
+                val jsonObject = JSONObject().apply {
+                    put("latitude", waypoint.latitude)
+                    put("longitude", waypoint.longitude)
+                }
+                jsonArray.put(jsonObject)
+            }
+            
             val file = File(context.filesDir, fileName)
-            val jsonString = json.encodeToString(waypoints)
-            file.writeText(jsonString)
-        } catch (e: IOException) {
+            file.writeText(jsonArray.toString(2)) // Indent with 2 spaces for pretty print
+        } catch (e: Exception) {
             e.printStackTrace()
         }
     }
@@ -40,8 +47,21 @@ class WaypointRepository(private val context: Context) {
             if (!file.exists()) {
                 return@withContext emptyList()
             }
+            
             val jsonString = file.readText()
-            json.decodeFromString<List<Waypoint>>(jsonString)
+            val jsonArray = JSONArray(jsonString)
+            val waypoints = mutableListOf<Waypoint>()
+            
+            for (i in 0 until jsonArray.length()) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                waypoints.add(
+                    Waypoint(
+                        latitude = jsonObject.getDouble("latitude"),
+                        longitude = jsonObject.getDouble("longitude")
+                    )
+                )
+            }
+            waypoints
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
