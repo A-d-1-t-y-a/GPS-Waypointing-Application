@@ -1,60 +1,50 @@
 package com.example.gpswaypointing
 
-import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.ui.Modifier
-import com.example.gpswaypointing.data.WaypointRepository
-import com.example.gpswaypointing.service.LocationService
-import com.example.gpswaypointing.service.SensorService
+import com.example.gpswaypointing.data.LocationStorageManager
+import com.example.gpswaypointing.service.GPSMonitor
+import com.example.gpswaypointing.service.OrientationProvider
+import com.example.gpswaypointing.theme.VintageMapTheme
 
 /**
- * Main activity - simplified entry point that sets up services and UI.
+ * Entry point for the Vintage Edition GPS Tracker.
  */
 class MainActivity : ComponentActivity() {
-    private lateinit var locationService: LocationService
-    private lateinit var sensorService: SensorService
-    private lateinit var waypointRepository: WaypointRepository
 
-    private val requestPermissionLauncher = registerForActivityResult(
+    private lateinit var gpsMonitor: GPSMonitor
+    private lateinit var orientationProvider: OrientationProvider
+    private lateinit var storageManager: LocationStorageManager
+
+    private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        // Permission result handled
+    ) { _ -> 
+        // Logic handled in composable state
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize services
-        locationService = LocationService(this)
-        sensorService = SensorService(this)
-        waypointRepository = WaypointRepository(this)
+        // Initialize Managers
+        gpsMonitor = GPSMonitor(this)
+        orientationProvider = OrientationProvider(this)
+        storageManager = LocationStorageManager(this)
 
-        // Request location permission if not granted
-        if (!locationService.hasLocationPermission()) {
-            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        if (!gpsMonitor.isPermissionGranted()) {
+            permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
         }
 
         setContent {
-            GPSWaypointingTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    CompassScreen(
-                        locationService = locationService,
-                        sensorService = sensorService,
-                        waypointRepository = waypointRepository
-                    )
-                }
+            VintageMapTheme {
+                MainExplorerInterface(
+                    gpsMonitor = gpsMonitor,
+                    orientationProvider = orientationProvider,
+                    storageManager = storageManager
+                )
             }
         }
     }
 }
-

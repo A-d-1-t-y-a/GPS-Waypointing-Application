@@ -7,68 +7,57 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * Custom typography for the app.
- * Uses Monospace font for technical HUD look.
+ * Serif typography for that "Field Guide" aesthetic.
  */
-val AppTypography = Typography(
+val VintageTypography = Typography(
     displayLarge = TextStyle(
-        fontFamily = FontFamily.Monospace,
+        fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.Bold,
-        fontSize = 57.sp,
-        letterSpacing = 2.sp
+        fontSize = 57.sp
     ),
     displayMedium = TextStyle(
-        fontFamily = FontFamily.Monospace,
+        fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.Bold,
-        fontSize = 45.sp,
-        letterSpacing = 2.sp
+        fontSize = 45.sp
     ),
     displaySmall = TextStyle(
-        fontFamily = FontFamily.Monospace,
+        fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.Bold,
-        fontSize = 36.sp,
-        letterSpacing = 1.sp
+        fontSize = 36.sp
     ),
     headlineLarge = TextStyle(
-        fontFamily = FontFamily.Monospace,
+        fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.Bold,
-        fontSize = 32.sp,
-        letterSpacing = 1.sp
+        fontSize = 32.sp
     ),
     headlineMedium = TextStyle(
-        fontFamily = FontFamily.Monospace,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 28.sp,
-        letterSpacing = 1.sp
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 28.sp
     ),
     titleLarge = TextStyle(
-        fontFamily = FontFamily.Monospace,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 22.sp,
-        letterSpacing = 1.sp
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 22.sp
     ),
     titleMedium = TextStyle(
-        fontFamily = FontFamily.Monospace,
-        fontWeight = FontWeight.Medium,
-        fontSize = 16.sp,
-        letterSpacing = 1.sp
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 16.sp
     ),
     bodyLarge = TextStyle(
-        fontFamily = FontFamily.Monospace,
+        fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        letterSpacing = 0.5.sp
+        fontSize = 16.sp
     ),
     bodyMedium = TextStyle(
-        fontFamily = FontFamily.Monospace,
+        fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        letterSpacing = 0.5.sp
+        fontSize = 14.sp
     ),
     labelLarge = TextStyle(
-        fontFamily = FontFamily.Monospace,
+        fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        letterSpacing = 1.sp
+        fontSize = 14.sp
     )
 )

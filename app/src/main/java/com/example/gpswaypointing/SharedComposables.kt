@@ -1,307 +1,207 @@
 package com.example.gpswaypointing
 
-import android.app.Activity
 import android.location.Location
-import android.os.Build
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CutCornerShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Navigation
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gpswaypointing.data.Waypoint
-import com.example.gpswaypointing.data.WaypointRepository
-import com.example.gpswaypointing.domain.model.NavigationState
-import com.example.gpswaypointing.domain.usecase.CalculateBearingUseCase
-import com.example.gpswaypointing.domain.usecase.CalculateDistanceUseCase
-import com.example.gpswaypointing.domain.usecase.FilterWaypointsUseCase
-import com.example.gpswaypointing.service.LocationService
-import com.example.gpswaypointing.service.SensorService
-import com.example.gpswaypointing.theme.AppColors
-import com.example.gpswaypointing.theme.AppTypography
-import com.example.gpswaypointing.viewmodel.CompassViewModel
-import com.example.gpswaypointing.viewmodel.NavigationViewModel
-import com.example.gpswaypointing.viewmodel.WaypointViewModel
+import com.example.gpswaypointing.data.LocationPoint
+import com.example.gpswaypointing.data.LocationStorageManager
+import com.example.gpswaypointing.service.GPSMonitor
+import com.example.gpswaypointing.service.OrientationProvider
+import com.example.gpswaypointing.theme.VintageColors
+import com.example.gpswaypointing.theme.VintageMapTheme
+import com.example.gpswaypointing.theme.VintageTypography
+import com.example.gpswaypointing.utils.GeoMathUtils
+import com.example.gpswaypointing.viewmodel.NavigatorViewModel
+import com.example.gpswaypointing.viewmodel.OrientationViewModel
+import com.example.gpswaypointing.viewmodel.TravelLogViewModel
 import kotlin.math.*
 
 // ==========================================
-// Theme
+// Theme (Re-export for simple access)
 // ==========================================
-
-/**
- * Sci-Fi Dark Color Scheme.
- * Forces dark mode aesthetics.
- */
-private val SciFiColorScheme = darkColorScheme(
-    primary = AppColors.Primary,
-    onPrimary = Color.Black,
-    primaryContainer = AppColors.PrimaryDark,
-    onPrimaryContainer = Color.White,
-    secondary = AppColors.Secondary,
-    onSecondary = Color.White,
-    tertiary = AppColors.Accent,
-    onTertiary = Color.Black,
-    background = AppColors.Background,
-    onBackground = AppColors.TextPrimary,
-    surface = AppColors.Surface,
-    onSurface = AppColors.TextPrimary,
-    error = AppColors.Error,
-    onError = Color.Black,
-    surfaceVariant = AppColors.SurfaceDark,
-    onSurfaceVariant = AppColors.TextSecondary
-)
-
-/**
- * Custom theme for the GPS waypointing app.
- * Enforces Sci-Fi Dark Mode.
- */
-@Composable
-fun GPSWaypointingTheme(
-    darkTheme: Boolean = true, // Force Dark Theme
-    dynamicColor: Boolean = false, // Disable dynamic color to maintain aesthetic
-    content: @Composable () -> Unit
-) {
-    val colorScheme = SciFiColorScheme
-    
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            window.statusBarColor = AppColors.Background.toArgb()
-            window.navigationBarColor = AppColors.Background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
-            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = false
-        }
-    }
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = AppTypography,
-        content = content
-    )
-}
+// VintageMapTheme is in theme/Theme.kt, used by MainActivity.
 
 // ==========================================
 // Screens
 // ==========================================
 
 /**
- * Main compass screen with Sci-Fi HUD UI components.
+ * Main Interface: "Explorer's Dashboard".
  */
 @Composable
-fun CompassScreen(
-    locationService: LocationService,
-    sensorService: SensorService,
-    waypointRepository: WaypointRepository,
+fun MainExplorerInterface(
+    gpsMonitor: GPSMonitor,
+    orientationProvider: OrientationProvider,
+    storageManager: LocationStorageManager,
     modifier: Modifier = Modifier
 ) {
-    val compassViewModel: CompassViewModel = viewModel { CompassViewModel(sensorService) }
-    val waypointViewModel: WaypointViewModel = viewModel {
-        WaypointViewModel(waypointRepository, CalculateDistanceUseCase(), FilterWaypointsUseCase())
-    }
-    val navigationViewModel: NavigationViewModel = viewModel {
-        NavigationViewModel(CalculateDistanceUseCase(), CalculateBearingUseCase())
-    }
+    val orientationVM: OrientationViewModel = viewModel { OrientationViewModel(orientationProvider) }
+    val travelLogVM: TravelLogViewModel = viewModel { TravelLogViewModel(storageManager) }
+    val navigatorVM: NavigatorViewModel = viewModel { NavigatorViewModel() }
 
-    val compassRotation by compassViewModel.compassRotation.collectAsState(initial = 0f)
-    val waypoints by waypointViewModel.waypoints.collectAsState()
-    val selectedIndex by waypointViewModel.selectedWaypointIndex.collectAsState()
-    val currentLocation by waypointViewModel.currentLocation.collectAsState()
-    val scaleMeters by waypointViewModel.scaleMeters.collectAsState()
-    val navigationState by navigationViewModel.navigationState.collectAsState()
+    val azimuth by orientationVM.azimuth.collectAsState()
+    val logEntries by travelLogVM.logEntries
+    val userLoc by travelLogVM.userLocation
+    val targetIndex by travelLogVM.activeTargetIndex
+    val zoom by travelLogVM.zoomLevel
+    val navData by navigatorVM.navStatus
 
-    var isTracking by remember { mutableStateOf(false) }
-    var showClearDialog by remember { mutableStateOf(false) }
+    var isRecording by remember { mutableStateOf(false) }
+    var showingPurgeConfirm by remember { mutableStateOf(false) }
 
-    // Setup location tracking
-    LaunchedEffect(isTracking) {
-        if (isTracking) {
-            locationService.getLocationUpdates().collect { location ->
-                waypointViewModel.updateLocation(location)
-                navigationViewModel.updateNavigation(location, waypointViewModel.selectedWaypoint)
+    // GPS Logic
+    LaunchedEffect(isRecording) {
+        if (isRecording) {
+            gpsMonitor.requestLocationUpdates().collect { loc ->
+                travelLogVM.updateUserPosition(loc)
+                navigatorVM.refreshNavigation(loc, travelLogVM.getTargetPoint())
             }
         }
     }
 
-    // Update navigation when selection changes
-    LaunchedEffect(selectedIndex, currentLocation) {
-        currentLocation?.let { location ->
-            navigationViewModel.updateNavigation(location, waypointViewModel.selectedWaypoint)
+    // Navigation Update Logic
+    LaunchedEffect(targetIndex, userLoc) {
+        userLoc?.let { 
+            navigatorVM.refreshNavigation(it, travelLogVM.getTargetPoint()) 
         }
     }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = AppColors.Background,
+        containerColor = VintageColors.Parchment,
         bottomBar = {
-            // Glassmorphic Control Panel
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = AppColors.Surface.copy(alpha = 0.9f),
-                shadowElevation = 16.dp,
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.Primary.copy(alpha = 0.3f))
-            ) {
-                ControlBottomSheet(
-                    isTracking = isTracking,
-                    canAddWaypoint = currentLocation != null,
-                    hasWaypoints = waypoints.isNotEmpty(),
-                    onStartTracking = { isTracking = true },
-                    onStopTracking = { isTracking = false },
-                    onAddWaypoint = {
-                        currentLocation?.let { waypointViewModel.addWaypoint(it) }
-                    },
-                    onClearWaypoints = { showClearDialog = true }
-                )
-            }
+             Surface(
+                 modifier = Modifier.fillMaxWidth(),
+                 color = VintageColors.ParchmentDark,
+                 shadowElevation = 8.dp,
+                 border = androidx.compose.foundation.BorderStroke(2.dp, VintageColors.LeatherBrown)
+             ) {
+                 ActionPanel(
+                     isRecording = isRecording,
+                     canMark = userLoc != null,
+                     hasBriefs = logEntries.isNotEmpty(),
+                     onToggleRecord = { isRecording = !isRecording },
+                     onMarkSpot = { userLoc?.let { travelLogVM.recordLocation(it) } },
+                     onPurge = { showingPurgeConfirm = true }
+                 )
+             }
         }
-    ) { paddingValues ->
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(AppColors.Background, AppColors.SurfaceDark)
-                    )
-                )
+                .padding(padding)
+                .padding(16.dp)
         ) {
-            // HUD Top Panel
-            NavigationInfo(
-                navigationState = navigationState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
+            // Header: Map Title / Nav Info
+            MapHeader(
+                navData = navData,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             )
 
-            // Main Radar Display
+            // Main Map: Nautical Compass
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(16.dp),
+                    .border(4.dp, VintageColors.LeatherBrown)
+                    .background(VintageColors.ParchmentDark)
+                    .padding(4.dp),
                 contentAlignment = Alignment.Center
             ) {
-                CompassView(
-                    compassRotation = compassRotation,
-                    currentLocation = currentLocation,
-                    waypoints = waypointViewModel.getWaypointsInRange(),
-                    selectedWaypoint = waypointViewModel.selectedWaypoint,
-                    scaleMeters = scaleMeters,
-                    onWaypointTapped = { waypoint ->
-                        val index = waypoints.indexOf(waypoint)
-                        if (index >= 0) waypointViewModel.selectWaypoint(index)
+                NauticalCompass(
+                    rotationDesc = azimuth,
+                    selfLoc = userLoc,
+                    points = travelLogVM.getPointsInView(),
+                    activePoint = travelLogVM.getTargetPoint(),
+                    zoomMeters = zoom,
+                    onTapPoint = { pt ->
+                        val idx = logEntries.indexOf(pt)
+                        if (idx != -1) travelLogVM.setTarget(idx)
                     },
-                    onScaleChanged = { waypointViewModel.updateScale(it) }
+                    onZoomChange = { travelLogVM.setZoom(it) }
                 )
                 
-                // Scale Indicator Overlay
+                // Scale Legend
                 Text(
-                    text = "RADAR SCALE: ${scaleMeters.toInt()}m",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = AppColors.Primary,
+                    text = "Scale: 1:${zoom.toInt()}",
+                    style = VintageTypography.labelLarge,
+                    color = VintageColors.InkBlack,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
+                        .align(Alignment.BottomEnd)
                         .padding(8.dp)
-                        .border(1.dp, AppColors.Primary, RoundedCornerShape(4.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .background(VintageColors.Parchment.copy(alpha = 0.8f))
+                        .padding(4.dp)
                 )
             }
 
-            // Data List Panel
-            if (waypoints.isNotEmpty()) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp)
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.TextSecondary.copy(alpha = 0.3f))
+            Spacer(Modifier.height(16.dp))
+
+            // Footer: Field Notes (List)
+            if (logEntries.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    color = VintageColors.Parchment,
+                    border = androidx.compose.foundation.BorderStroke(2.dp, VintageColors.InkBlue)
                 ) {
-                    Column {
-                        Text(
-                            text = "WAYPOINT DATA LOG",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = AppColors.TextSecondary,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(AppColors.Surface.copy(alpha = 0.5f))
-                                .padding(8.dp)
-                        )
-                        WaypointList(
-                            waypoints = waypoints,
-                            selectedIndex = selectedIndex,
-                            currentLocation = currentLocation,
-                            onWaypointSelected = { waypointViewModel.selectWaypoint(it) },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                    TravelLog(
+                        entries = logEntries,
+                        targetIndex = targetIndex,
+                        userLoc = userLoc,
+                        onSelect = { travelLogVM.setTarget(it) }
+                    )
                 }
             }
         }
 
-        // Cyberpunk Dialog
-        if (showClearDialog) {
+        if (showingPurgeConfirm) {
             AlertDialog(
-                onDismissRequest = { showClearDialog = false },
-                containerColor = AppColors.Surface,
-                title = { Text("PURGE DATA?", color = AppColors.Error) },
-                text = { Text("Confirm deletion of all waypoint coordinates. This action is irreversible.", color = AppColors.TextPrimary) },
+                onDismissRequest = { showingPurgeConfirm = false },
+                containerColor = VintageColors.Parchment,
+                title = { Text("Burn Field Notes?", style = VintageTypography.headlineMedium, color = VintageColors.OldRed) },
+                text = { Text("This will destroy all recorded coordinates forever.", style = VintageTypography.bodyLarge, color = VintageColors.InkBlack) },
                 confirmButton = {
                     Button(
-                        onClick = {
-                            waypointViewModel.clearWaypoints()
-                            showClearDialog = false
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.Error),
-                        shape = CutCornerShape(8.dp)
-                    ) {
-                        Text("PURGE")
-                    }
+                        onClick = { travelLogVM.clearLog(); showingPurgeConfirm = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = VintageColors.OldRed)
+                    ) { Text("Burn", color = VintageColors.Parchment) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showClearDialog = false }) {
-                        Text("CANCEL", color = AppColors.Primary)
+                    TextButton(onClick = { showingPurgeConfirm = false }) {
+                        Text("Keep", color = VintageColors.InkBlue)
                     }
                 }
             )
@@ -310,51 +210,25 @@ fun CompassScreen(
 }
 
 // ==========================================
-// Views / Components
+// Views
 // ==========================================
 
 /**
- * Sci-Fi Radar Compass with infinite sweep animation.
+ * Styled Nautical Compass.
  */
 @Composable
-fun CompassView(
-    compassRotation: Float,
-    currentLocation: Location?,
-    waypoints: List<Waypoint>,
-    selectedWaypoint: Waypoint?,
-    scaleMeters: Float,
-    onWaypointTapped: (Waypoint) -> Unit,
-    onScaleChanged: (Float) -> Unit,
+fun NauticalCompass(
+    rotationDesc: Float,
+    selfLoc: Location?,
+    points: List<LocationPoint>,
+    activePoint: LocationPoint?,
+    zoomMeters: Float,
+    onTapPoint: (LocationPoint) -> Unit,
+    onZoomChange: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    
-    // Animations
-    val infiniteTransition = rememberInfiniteTransition(label = "RadarSweep")
-    val sweepAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "SweepAngle"
-    )
-    
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "PulseAlpha"
-    )
-
-    // Layout
-    val waypointRadiusPx = remember { with(density) { 6.dp.toPx() } } // Small blips
-    val selectedRadiusPx = remember { with(density) { 12.dp.toPx() } }
-    val compassFontSize = remember { with(density) { 24.sp.toPx() } }
+    val compassFontSize = remember { with(density) { 18.sp.toPx() } }
 
     Canvas(
         modifier = modifier
@@ -362,161 +236,126 @@ fun CompassView(
             .aspectRatio(1f)
             .pointerInput(Unit) {
                 val center = Offset(size.width / 2f, size.height / 2f)
-                detectTapGestures { tapOffset ->
-                    currentLocation?.let { location ->
-                        waypoints.forEach { waypoint ->
-                            val dist = location.distanceTo(Location("").apply { 
-                                latitude = waypoint.latitude; longitude = waypoint.longitude 
-                            })
-                            val bearing = location.bearingTo(Location("").apply { 
-                                latitude = waypoint.latitude; longitude = waypoint.longitude 
-                            })
-                            val radius = (dist / scaleMeters) * (size.width / 2)
-                            val bx = center.x + (radius * sin(Math.toRadians(bearing.toDouble()))).toFloat()
-                            val by = center.y - (radius * cos(Math.toRadians(bearing.toDouble()))).toFloat()
-
-                            // Rotate tap
-                            val angle = Math.toRadians(-compassRotation.toDouble())
-                            val dx = tapOffset.x - center.x
-                            val dy = tapOffset.y - center.y
-                            val rx = center.x + (dx * cos(angle) - dy * sin(angle)).toFloat()
-                            val ry = center.y + (dx * sin(angle) + dy * cos(angle)).toFloat()
-
-                            if (sqrt((rx - bx).pow(2) + (ry - by).pow(2)) <= 40.dp.toPx()) {
-                                onWaypointTapped(waypoint)
+                detectTapGestures { tap ->
+                    selfLoc?.let { me ->
+                        points.forEach { pt ->
+                            val dist = GeoMathUtils.computeDistance(me.latitude, me.longitude, pt.lat, pt.lng)
+                            val bear = GeoMathUtils.computeBearing(me.latitude, me.longitude, pt.lat, pt.lng)
+                            val r = (dist / zoomMeters) * (size.width / 2)
+                            val rad = Math.toRadians(bear.toDouble())
+                            
+                            val bx = center.x + (r * sin(rad)).toFloat()
+                            val by = center.y - (r * cos(rad)).toFloat()
+                            
+                            // Rotate touch
+                            val ang = Math.toRadians(-rotationDesc.toDouble())
+                            val dx = tap.x - center.x
+                            val dy = tap.y - center.y
+                            val rx = center.x + (dx * cos(ang) - dy * sin(ang)).toFloat()
+                            val ry = center.y + (dx * sin(ang) + dy * cos(ang)).toFloat()
+                            
+                            if (sqrt((rx - bx).pow(2) + (ry - by).pow(2)) < 50f) {
+                                onTapPoint(pt)
                             }
                         }
                     }
                 }
             }
-            .pointerInput(scaleMeters) {
-                detectTransformGestures { _, _, zoom, _ ->
-                    onScaleChanged((scaleMeters / zoom).coerceIn(500f, 2000f))
+            .pointerInput(zoomMeters) {
+                detectTransformGestures { _, _, z, _ ->
+                    onZoomChange((zoomMeters / z).coerceIn(500f, 2000f))
                 }
             }
     ) {
         val radius = size.minDimension / 2
         
-        rotate(compassRotation) {
-            // Radar Background
+        rotate(rotationDesc) {
+            // Background Paper
+            drawCircle(color = VintageColors.Parchment, radius = radius)
+            
+            // Outer Ring
             drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(AppColors.Surface, AppColors.Background),
-                    radius = radius
-                ),
-                radius = radius
+                color = VintageColors.InkBlue, 
+                radius = radius, 
+                style = Stroke(width = 4.dp.toPx())
             )
-
-            // Grid Lines & Rings
-            for (i in 1..4) {
-                val r = radius * (i / 4f)
-                drawCircle(
-                    color = AppColors.CompassRing.copy(alpha = 0.3f),
-                    radius = r,
-                    style = Stroke(width = 1.dp.toPx())
-                )
-            }
-            drawLine(
-                color = AppColors.CompassGrid.copy(alpha = 0.2f),
-                start = center.copy(x = center.x - radius),
-                end = center.copy(x = center.x + radius)
-            )
-            drawLine(
-                color = AppColors.CompassGrid.copy(alpha = 0.2f),
-                start = center.copy(y = center.y - radius),
-                end = center.copy(y = center.y + radius)
+            
+            // Inner decorative rings
+            drawCircle(
+                color = VintageColors.Sepia.copy(alpha = 0.5f),
+                radius = radius * 0.8f,
+                style = Stroke(width = 1.dp.toPx())
             )
 
             // Cardinals
-            val cardinals = listOf("N", "E", "S", "W")
-            cardinals.forEachIndexed { index, label ->
-                val angle = index * 90f
-                val rad = Math.toRadians(angle.toDouble())
+            val dirs = listOf("N", "E", "S", "W")
+            dirs.forEachIndexed { i, txt ->
+                val ang = i * 90f
+                val rad = Math.toRadians(ang.toDouble())
                 val tx = center.x + (radius * 0.9f * sin(rad)).toFloat()
                 val ty = center.y - (radius * 0.9f * cos(rad)).toFloat()
                 
                 drawIntoCanvas { 
-                    val paint = android.graphics.Paint().apply {
-                        color = if (label == "N") AppColors.Error.toArgb() else AppColors.Primary.toArgb()
+                    val p = android.graphics.Paint().apply {
+                        color = if (txt=="N") VintageColors.OldRed.toArgb() else VintageColors.InkBlack.toArgb()
                         textSize = compassFontSize
                         textAlign = android.graphics.Paint.Align.CENTER
-                        typeface = android.graphics.Typeface.MONOSPACE
-                        this.isFakeBoldText = true
+                        typeface = android.graphics.Typeface.SERIF
+                        isFakeBoldText = true
                     }
-                    it.nativeCanvas.drawText(label, tx, ty + compassFontSize/3, paint)
+                    it.nativeCanvas.drawText(txt, tx, ty + 10f, p)
                 }
             }
+            
+            // Crosshairs
+            drawLine(
+                color = VintageColors.FadedInk,
+                start = Offset(center.x - radius * 0.5f, center.y),
+                end = Offset(center.x + radius * 0.5f, center.y),
+                strokeWidth = 2f
+            )
+            drawLine(
+                color = VintageColors.FadedInk,
+                start = Offset(center.x, center.y - radius * 0.5f),
+                end = Offset(center.x, center.y + radius * 0.5f),
+                strokeWidth = 2f
+            )
 
-            // Radar Sweep
-            rotate(sweepAngle) {
-                drawArc(
-                    brush = Brush.sweepGradient(
-                        0f to Color.Transparent,
-                        1f to AppColors.Primary.copy(alpha = 0.5f)
-                    ),
-                    startAngle = -90f,
-                    sweepAngle = 90f,
-                    useCenter = true,
-                    topLeft = Offset(center.x - radius, center.y - radius),
-                    size = size.copy(width = radius * 2, height = radius * 2)
-                )
-            }
-
-            // Waypoints (Blips)
-            currentLocation?.let { loc ->
-                waypoints.forEach { wp ->
-                    val dist = loc.distanceTo(Location("").apply { 
-                        latitude = wp.latitude; longitude = wp.longitude 
-                    })
-                    val bearing = loc.bearingTo(Location("").apply { 
-                        latitude = wp.latitude; longitude = wp.longitude 
-                    })
-                    val r = (dist / scaleMeters) * radius
-                    val bx = center.x + (r * sin(Math.toRadians(bearing.toDouble()))).toFloat()
-                    val by = center.y - (r * cos(Math.toRadians(bearing.toDouble()))).toFloat()
-
+            // Marks
+            selfLoc?.let { me ->
+                points.forEach { pt ->
+                    val dist = GeoMathUtils.computeDistance(me.latitude, me.longitude, pt.lat, pt.lng)
+                    val bear = GeoMathUtils.computeBearing(me.latitude, me.longitude, pt.lat, pt.lng)
+                    val r = (dist / zoomMeters) * radius
+                    val rad = Math.toRadians(bear.toDouble())
+                    
+                    val bx = center.x + (r * sin(rad)).toFloat()
+                    val by = center.y - (r * cos(rad)).toFloat()
+                    
                     if (r <= radius) {
-                        val isSel = selectedWaypoint == wp
-                        // Blip Glow
-                        drawCircle(
-                            color = (if (isSel) AppColors.Warning else AppColors.Primary).copy(alpha = pulseAlpha),
-                            radius = if (isSel) selectedRadiusPx * 1.5f else waypointRadiusPx * 2f,
-                            center = Offset(bx, by)
-                        )
-                        // Blip Core
-                        drawCircle(
-                            color = if (isSel) AppColors.Warning else AppColors.Primary,
-                            radius = if (isSel) selectedRadiusPx else waypointRadiusPx,
-                            center = Offset(bx, by)
-                        )
+                        val isTarget = activePoint == pt
+                        // "X" marks the spot
+                        val s = if (isTarget) 15f else 10f
+                        val c = if (isTarget) VintageColors.OldRed else VintageColors.InkBlue
                         
-                        if (isSel) {
-                            // Target Reticle
-                            drawCircle(
-                                color = AppColors.Warning,
-                                radius = selectedRadiusPx + 4.dp.toPx(),
-                                style = Stroke(width = 2.dp.toPx())
-                            )
-                        }
+                        drawLine(color = c, start = Offset(bx - s, by - s), end = Offset(bx + s, by + s), strokeWidth = 4f)
+                        drawLine(color = c, start = Offset(bx + s, by - s), end = Offset(bx - s, by + s), strokeWidth = 4f)
                     }
                 }
-
-                // Nav Arrow
-                selectedWaypoint?.let { wp ->
-                    val bearing = loc.bearingTo(Location("").apply { 
-                        latitude = wp.latitude; longitude = wp.longitude 
-                    })
-                    val rad = Math.toRadians(bearing.toDouble())
-                    val arrowLen = radius * 0.8f
-                    val ax = center.x + (arrowLen * sin(rad)).toFloat()
-                    val ay = center.y - (arrowLen * cos(rad)).toFloat()
+                
+                activePoint?.let { tgt ->
+                    // Navigation Line
+                    val bear = GeoMathUtils.computeBearing(me.latitude, me.longitude, tgt.lat, tgt.lng)
+                    val rad = Math.toRadians(bear.toDouble())
+                    val len = radius * 0.7f
+                    val ex = center.x + (len * sin(rad)).toFloat()
+                    val ey = center.y - (len * cos(rad)).toFloat()
                     
                     drawLine(
-                        color = AppColors.Success,
-                        start = center,
-                        end = Offset(ax, ay),
-                        strokeWidth = 3.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                        color = VintageColors.ForestGreen,
+                        start = center, 
+                        end = Offset(ex, ey),
+                        strokeWidth = 3.dp.toPx()
                     )
                 }
             }
@@ -524,164 +363,137 @@ fun CompassView(
     }
 }
 
-/**
- * HUD Navigation Panel.
- */
 @Composable
-fun NavigationInfo(
-    navigationState: NavigationState,
+fun MapHeader(
+    navData: NavigatorViewModel.NavData,
     modifier: Modifier = Modifier
 ) {
-    AnimatedVisibility(
-        visible = navigationState is NavigationState.Navigating,
-        enter = slideInVertically() + fadeIn(),
-        exit = fadeOut(),
+    Row(
         modifier = modifier
+            .background(VintageColors.Parchment)
+            .border(2.dp, VintageColors.InkBlue)
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        if (navigationState is NavigationState.Navigating) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, AppColors.Primary, CutCornerShape(bottomEnd = 16.dp))
-                    .background(AppColors.Surface.copy(alpha = 0.8f), CutCornerShape(bottomEnd = 16.dp))
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("TARGET ACQUIRED", style = MaterialTheme.typography.labelSmall, color = AppColors.Warning)
-                    Text(
-                        "${navigationState.distance.toInt()}m", 
-                        style = MaterialTheme.typography.displayMedium, 
-                        color = AppColors.Primary
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("BEARING", style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
-                    Text(
-                        "${navigationState.bearing.toInt()}°", 
-                        style = MaterialTheme.typography.headlineLarge, 
-                        color = AppColors.Success
-                    )
-                }
+        Column {
+            Text("FIELD POSITION", style = VintageTypography.labelLarge, color = VintageColors.FadedInk)
+            if (navData.isActive) {
+                Text(
+                    "DST: ${navData.dist.toInt()} m", 
+                    style = VintageTypography.headlineMedium, 
+                    color = VintageColors.InkBlack
+                )
+            } else {
+                Text("SCANNING...", style = VintageTypography.titleMedium, color = VintageColors.Sepia)
             }
+        }
+        
+        Column(horizontalAlignment = Alignment.End) {
+             Text("BEARING", style = VintageTypography.labelLarge, color = VintageColors.FadedInk)
+             Text(
+                 "${navData.azi.toInt()}°", 
+                 style = VintageTypography.headlineMedium, 
+                 color = VintageColors.OldRed
+             )
         }
     }
 }
 
-/**
- * Cyberpunk Control Bottom Sheet.
- */
 @Composable
-fun ControlBottomSheet(
-    isTracking: Boolean,
-    canAddWaypoint: Boolean,
-    hasWaypoints: Boolean,
-    onStartTracking: () -> Unit,
-    onStopTracking: () -> Unit,
-    onAddWaypoint: () -> Unit,
-    onClearWaypoints: () -> Unit,
-    modifier: Modifier = Modifier
+fun ActionPanel(
+    isRecording: Boolean,
+    canMark: Boolean,
+    hasBriefs: Boolean,
+    onToggleRecord: () -> Unit,
+    onMarkSpot: () -> Unit,
+    onPurge: () -> Unit
 ) {
-    Column(
-        modifier = modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            // Tracking Button
+    Column(Modifier.padding(16.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
-                onClick = if (isTracking) onStopTracking else onStartTracking,
-                modifier = Modifier.weight(1f).height(56.dp),
+                onClick = onToggleRecord,
+                modifier = Modifier.weight(1f).height(50.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isTracking) AppColors.Error.copy(alpha = 0.2f) else AppColors.Primary.copy(alpha = 0.2f),
-                    contentColor = if (isTracking) AppColors.Error else AppColors.Primary
+                    containerColor = if (isRecording) VintageColors.LeatherBrown else VintageColors.InkBlue
                 ),
-                shape = CutCornerShape(topStart = 12.dp, bottomEnd = 12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (isTracking) AppColors.Error else AppColors.Primary)
+                shape = MaterialTheme.shapes.small
             ) {
-                Icon(
-                    imageVector = if (isTracking) Icons.Default.Stop else Icons.Default.LocationOn,
-                    contentDescription = null
-                )
+                Icon(if (isRecording) Icons.Default.Close else Icons.Default.Explore, null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (isTracking) "ABORT TRACK" else "INITIATE TRACK")
+                Text(if (isRecording) "HALT" else "SURVEY")
             }
-
-            // ADD Button
-            if (isTracking) {
-                Button(
-                    onClick = onAddWaypoint,
-                    enabled = canAddWaypoint,
-                    modifier = Modifier.size(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AppColors.Warning,
-                        contentColor = Color.Black
-                    ),
-                    shape = CutCornerShape(12.dp)
+            
+            if (isRecording) {
+                 Button(
+                    onClick = onMarkSpot,
+                    enabled = canMark,
+                    colors = ButtonDefaults.buttonColors(containerColor = VintageColors.BurntOrange),
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.height(50.dp)
                 ) {
-                    Icon(Icons.Default.Add, null)
+                    Icon(Icons.Default.LocationOn, null)
+                    Text("MARK")
                 }
             }
         }
-
-        if (hasWaypoints) {
+        
+        if (hasBriefs) {
+            Spacer(Modifier.height(8.dp))
             OutlinedButton(
-                onClick = onClearWaypoints,
+                onClick = onPurge, 
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.Error),
-                shape = CutCornerShape(4.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.Error.copy(alpha = 0.5f))
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = VintageColors.OldRed),
+                border = androidx.compose.foundation.BorderStroke(1.dp, VintageColors.OldRed)
             ) {
-                Icon(Icons.Default.Delete, null, Modifier.size(16.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("PURGE ALL DATA")
+                Text("DISCARD ALL RECORDS")
             }
         }
     }
 }
 
 @Composable
-fun WaypointList(
-    waypoints: List<Waypoint>,
-    selectedIndex: Int?,
-    currentLocation: Location?,
-    onWaypointSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
+fun TravelLog(
+    entries: List<LocationPoint>,
+    targetIndex: Int?,
+    userLoc: Location?,
+    onSelect: (Int) -> Unit
 ) {
-    val calculateDistance = CalculateDistanceUseCase()
-    LazyColumn(modifier = modifier, contentPadding = PaddingValues(8.dp)) {
-        itemsIndexed(waypoints) { index, waypoint ->
-            val isSelected = selectedIndex == index
-            val dist = currentLocation?.let { calculateDistance(it, waypoint) }
-            
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .clickable { onWaypointSelected(index) }
-                    .background(
-                        if (isSelected) AppColors.Primary.copy(alpha = 0.1f) else Color.Transparent,
-                        CutCornerShape(topEnd = 8.dp)
+    Column {
+        Text(
+            "FIELD NOTES", 
+            style = VintageTypography.labelLarge, 
+            modifier = Modifier.fillMaxWidth().background(VintageColors.Sepia).padding(8.dp),
+            color = VintageColors.Parchment
+        )
+        LazyColumn(contentPadding = PaddingValues(8.dp)) {
+            itemsIndexed(entries) { idx, item ->
+                val isSel = idx == targetIndex
+                val dist = userLoc?.let { 
+                    GeoMathUtils.computeDistance(it.latitude, it.longitude, item.lat, item.lng) 
+                }
+                
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp)
+                        .background(if (isSel) VintageColors.ParchmentDark else Color.Transparent)
+                        .clickable { onSelect(idx) }
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Entry #${idx + 1}", 
+                        style = VintageTypography.bodyLarge,
+                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
                     )
-                    .border(
-                        1.dp, 
-                        if (isSelected) AppColors.Primary else AppColors.TextSecondary.copy(alpha = 0.2f),
-                        CutCornerShape(topEnd = 8.dp)
+                    Text(
+                        if (dist != null) "${dist.toInt()} m" else "---",
+                        style = VintageTypography.bodyMedium,
+                        color = VintageColors.FadedInk
                     )
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "WP-${index + 1}",
-                    color = if (isSelected) AppColors.Primary else AppColors.TextPrimary,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    text = if (dist != null) "${dist.toInt()}m" else "--",
-                    color = AppColors.TextSecondary,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                }
+                Divider(color = VintageColors.Sepia.copy(alpha = 0.2f))
             }
         }
     }
