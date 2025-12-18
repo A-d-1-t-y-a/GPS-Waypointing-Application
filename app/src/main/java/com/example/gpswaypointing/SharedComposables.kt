@@ -445,7 +445,7 @@ fun CompassView(
                     Color.Black
                 }
 
-                drawContext.canvas.drawIntoCanvas { canvas ->
+                drawIntoCanvas { canvas ->
                     val paint = android.graphics.Paint().apply {
                         textAlign = android.graphics.Paint.Align.CENTER
                         textSize = compassTextSizePx
