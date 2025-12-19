@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.gpswaypointing"
+    namespace = "com.orion.navigator"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.gpswaypointing"
+        applicationId = "com.orion.navigator"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
