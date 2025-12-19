@@ -1,4 +1,4 @@
-package com.example.gpswaypointing.service
+package com.vintagenav.explorer.service
 
 import android.content.Context
 import android.hardware.Sensor
@@ -12,22 +12,22 @@ import kotlinx.coroutines.flow.callbackFlow
 /**
  * Provider for device physical orientation (Compass).
  */
-class OrientationProvider(context: Context) {
-    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+class OrientationProvider(appCtx: Context) {
+    private val senseMgr = appCtx.getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
     /**
      * Stream of azimuth values in degrees.
      */
-    fun orientationFlow(): Flow<Float> = callbackFlow {
-        val rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-        if (rotationSensor == null) {
+    fun sensorStream(): Flow<Float> = callbackFlow {
+        val rotSensor = senseMgr.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        if (rotSensor == null) {
             close()
             return@callbackFlow
         }
 
-        val listener = object : SensorEventListener {
-            override fun onSensorChanged(event: SensorEvent?) {
-                event?.let {
+        val senseListener = object : SensorEventListener {
+            override fun onSensorChanged(evt: SensorEvent?) {
+                evt?.let {
                     if (it.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
                         val rMat = FloatArray(9)
                         SensorManager.getRotationMatrixFromVector(rMat, it.values)
@@ -35,9 +35,9 @@ class OrientationProvider(context: Context) {
                         SensorManager.getOrientation(rMat, orientation)
                         
                         // Azimuth is at index 0, convert to degrees
-                        val azimuth = Math.toDegrees(orientation[0].toDouble()).toFloat()
+                        val headingDeg = Math.toDegrees(orientation[0].toDouble()).toFloat()
                         // Invert for compass rotation use
-                        trySend(-azimuth)
+                        trySend(-headingDeg)
                     }
                 }
             }
@@ -47,10 +47,10 @@ class OrientationProvider(context: Context) {
             }
         }
 
-        sensorManager.registerListener(listener, rotationSensor, SensorManager.SENSOR_DELAY_UI)
+        senseMgr.registerListener(senseListener, rotSensor, SensorManager.SENSOR_DELAY_UI)
         
         awaitClose {
-            sensorManager.unregisterListener(listener)
+            senseMgr.unregisterListener(senseListener)
         }
     }
 }

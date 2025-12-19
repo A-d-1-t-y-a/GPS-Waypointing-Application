@@ -1,4 +1,4 @@
-package com.example.gpswaypointing.theme
+package com.vintagenav.explorer.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
@@ -9,7 +9,7 @@ import androidx.compose.ui.unit.sp
 /**
  * Serif typography for that "Field Guide" aesthetic.
  */
-val VintageTypography = Typography(
+val LogbookFont = Typography(
     displayLarge = TextStyle(
         fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.Bold,

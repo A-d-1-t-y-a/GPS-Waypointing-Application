@@ -1,4 +1,4 @@
-package com.example.gpswaypointing.service
+package com.vintagenav.explorer.service
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -16,15 +16,15 @@ import kotlinx.coroutines.flow.callbackFlow
 /**
  * Service class to monitor GPS location updates.
  */
-class GPSMonitor(private val context: Context) {
-    private val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+class GPSMonitor(private val sysCtx: Context) {
+    private val locMgr = sysCtx.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
     /**
      * Check if permissions are granted.
      */
-    fun isPermissionGranted(): Boolean {
+    fun checkPerms(): Boolean {
         return ContextCompat.checkSelfPermission(
-            context,
+            sysCtx,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
     }
@@ -34,13 +34,13 @@ class GPSMonitor(private val context: Context) {
      * Updates every 5 seconds (5000ms).
      */
     @SuppressLint("MissingPermission")
-    fun requestLocationUpdates(): Flow<Location> = callbackFlow {
-        if (!isPermissionGranted()) {
+    fun streamLocation(): Flow<Location> = callbackFlow {
+        if (!checkPerms()) {
             close()
             return@callbackFlow
         }
 
-        val listener = object : LocationListener {
+        val gpsListener = object : LocationListener {
             override fun onLocationChanged(location: Location) {
                 trySend(location)
             }
@@ -49,19 +49,19 @@ class GPSMonitor(private val context: Context) {
             override fun onProviderDisabled(provider: String) {}
         }
 
-        locationManager.requestLocationUpdates(
+        locMgr.requestLocationUpdates(
             LocationManager.GPS_PROVIDER,
             5000L, // 5 seconds interval
             0f,
-            listener
+            gpsListener
         )
 
         // Also look for last known
-        val lastKnown = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-        lastKnown?.let { trySend(it) }
+        val knownPos = locMgr.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+        knownPos?.let { trySend(it) }
 
         awaitClose {
-            locationManager.removeUpdates(listener)
+            locMgr.removeUpdates(gpsListener)
         }
     }
 }

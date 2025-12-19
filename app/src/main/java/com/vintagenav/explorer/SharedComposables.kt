@@ -1,4 +1,4 @@
-package com.example.gpswaypointing
+package com.vintagenav.explorer
 
 import android.location.Location
 import androidx.compose.animation.*
@@ -36,23 +36,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gpswaypointing.data.LocationPoint
-import com.example.gpswaypointing.data.LocationStorageManager
-import com.example.gpswaypointing.service.GPSMonitor
-import com.example.gpswaypointing.service.OrientationProvider
-import com.example.gpswaypointing.theme.VintageColors
-import com.example.gpswaypointing.theme.VintageMapTheme
-import com.example.gpswaypointing.theme.VintageTypography
-import com.example.gpswaypointing.utils.GeoMathUtils
-import com.example.gpswaypointing.viewmodel.NavigatorViewModel
-import com.example.gpswaypointing.viewmodel.OrientationViewModel
-import com.example.gpswaypointing.viewmodel.TravelLogViewModel
+import com.vintagenav.explorer.data.LocationPoint
+import com.vintagenav.explorer.data.LocationStorageManager
+import com.vintagenav.explorer.service.GPSMonitor
+import com.vintagenav.explorer.service.OrientationProvider
+import com.vintagenav.explorer.theme.ExplorerPalette
+import com.vintagenav.explorer.theme.ExpeditionTheme
+import com.vintagenav.explorer.theme.LogbookFont
+import com.vintagenav.explorer.utils.GeoMathUtils
+import com.vintagenav.explorer.viewmodel.NavigatorViewModel
+import com.vintagenav.explorer.viewmodel.OrientationViewModel
+import com.vintagenav.explorer.viewmodel.TravelLogViewModel
 import kotlin.math.*
 
 // ==========================================
 // Theme (Re-export for simple access)
 // ==========================================
-// VintageMapTheme is in theme/Theme.kt, used by MainActivity.
+// ExpeditionTheme is in theme/ExpeditionTheme.kt, used by MainActivity.
 
 // ==========================================
 // Screens
@@ -62,60 +62,60 @@ import kotlin.math.*
  * Main Interface: "Explorer's Dashboard".
  */
 @Composable
-fun MainExplorerInterface(
-    gpsMonitor: GPSMonitor,
-    orientationProvider: OrientationProvider,
-    storageManager: LocationStorageManager,
-    modifier: Modifier = Modifier
+fun ExpeditionDashboard(
+    locationTracker: GPSMonitor,
+    compassSensor: OrientationProvider,
+    dataStore: LocationStorageManager,
+    uiMod: Modifier = Modifier
 ) {
-    val orientationVM: OrientationViewModel = viewModel { OrientationViewModel(orientationProvider) }
-    val travelLogVM: TravelLogViewModel = viewModel { TravelLogViewModel(storageManager) }
-    val navigatorVM: NavigatorViewModel = viewModel { NavigatorViewModel() }
+    val compassVM: OrientationViewModel = viewModel { OrientationViewModel(compassSensor) }
+    val journalVM: TravelLogViewModel = viewModel { TravelLogViewModel(dataStore) }
+    val guideVM: NavigatorViewModel = viewModel { NavigatorViewModel() }
 
-    val azimuth by orientationVM.azimuth.collectAsState()
-    val logEntries by travelLogVM.logEntries
-    val userLoc by travelLogVM.userLocation
-    val targetIndex by travelLogVM.activeTargetIndex
-    val zoom by travelLogVM.zoomLevel
-    val navData by navigatorVM.navStatus
+    val currHeading by compassVM.currHeading.collectAsState()
+    val journalEntries by journalVM.journalEntries
+    val myLoc by journalVM.myLoc
+    val targetIdx by journalVM.targetIdx
+    val viewScale by journalVM.viewScale
+    val guidanceState by guideVM.guidanceState
 
-    var isRecording by remember { mutableStateOf(false) }
-    var showingPurgeConfirm by remember { mutableStateOf(false) }
+    var trackingActive by remember { mutableStateOf(false) }
+    var confirmDiscard by remember { mutableStateOf(false) }
 
     // GPS Logic
-    LaunchedEffect(isRecording) {
-        if (isRecording) {
-            gpsMonitor.requestLocationUpdates().collect { loc ->
-                travelLogVM.updateUserPosition(loc)
-                navigatorVM.refreshNavigation(loc, travelLogVM.getTargetPoint())
+    LaunchedEffect(trackingActive) {
+        if (trackingActive) {
+            locationTracker.streamLocation().collect { loc ->
+                journalVM.updateMyPosition(loc)
+                guideVM.updateGuidance(loc, journalVM.getActiveTarget())
             }
         }
     }
 
     // Navigation Update Logic
-    LaunchedEffect(targetIndex, userLoc) {
-        userLoc?.let { 
-            navigatorVM.refreshNavigation(it, travelLogVM.getTargetPoint()) 
+    LaunchedEffect(targetIdx, myLoc) {
+        myLoc?.let { 
+            guideVM.updateGuidance(it, journalVM.getActiveTarget()) 
         }
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = VintageColors.Parchment,
+        modifier = uiMod.fillMaxSize(),
+        containerColor = ExplorerPalette.MapCream,
         bottomBar = {
              Surface(
                  modifier = Modifier.fillMaxWidth(),
-                 color = VintageColors.ParchmentDark,
+                 color = ExplorerPalette.MapBeige,
                  shadowElevation = 8.dp,
-                 border = androidx.compose.foundation.BorderStroke(2.dp, VintageColors.LeatherBrown)
+                 border = androidx.compose.foundation.BorderStroke(2.dp, ExplorerPalette.SaddleBrown)
              ) {
-                 ActionPanel(
-                     isRecording = isRecording,
-                     canMark = userLoc != null,
-                     hasBriefs = logEntries.isNotEmpty(),
-                     onToggleRecord = { isRecording = !isRecording },
-                     onMarkSpot = { userLoc?.let { travelLogVM.recordLocation(it) } },
-                     onPurge = { showingPurgeConfirm = true }
+                 FieldControls(
+                     trackingActive = trackingActive,
+                     canMark = myLoc != null,
+                     hasBriefs = journalEntries.isNotEmpty(),
+                     onToggleRecord = { trackingActive = !trackingActive },
+                     onMarkSpot = { myLoc?.let { journalVM.recordSpot(it) } },
+                     onPurge = { confirmDiscard = true }
                  )
              }
         }
@@ -127,8 +127,8 @@ fun MainExplorerInterface(
                 .padding(16.dp)
         ) {
             // Header: Map Title / Nav Info
-            MapHeader(
-                navData = navData,
+            StatusReadout(
+                navData = guidanceState,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             )
 
@@ -137,33 +137,33 @@ fun MainExplorerInterface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .border(4.dp, VintageColors.LeatherBrown)
-                    .background(VintageColors.ParchmentDark)
+                    .border(4.dp, ExplorerPalette.SaddleBrown)
+                    .background(ExplorerPalette.MapBeige)
                     .padding(4.dp),
                 contentAlignment = Alignment.Center
             ) {
-                NauticalCompass(
-                    rotationDesc = azimuth,
-                    selfLoc = userLoc,
-                    points = travelLogVM.getPointsInView(),
-                    activePoint = travelLogVM.getTargetPoint(),
-                    zoomMeters = zoom,
+                CompassRose(
+                    bearing = currHeading,
+                    selfLoc = myLoc,
+                    sights = journalVM.getVisiblePoints(),
+                    activePoint = journalVM.getActiveTarget(),
+                    scaleMeters = viewScale,
                     onTapPoint = { pt ->
-                        val idx = logEntries.indexOf(pt)
-                        if (idx != -1) travelLogVM.setTarget(idx)
+                        val idx = journalEntries.indexOf(pt)
+                        if (idx != -1) journalVM.setTarget(idx)
                     },
-                    onZoomChange = { travelLogVM.setZoom(it) }
+                    onScaleChange = { journalVM.setScale(it) }
                 )
                 
                 // Scale Legend
                 Text(
-                    text = "Scale: 1:${zoom.toInt()}",
-                    style = VintageTypography.labelLarge,
-                    color = VintageColors.InkBlack,
+                    text = "Scale: 1:${viewScale.toInt()}",
+                    style = LogbookFont.labelLarge,
+                    color = ExplorerPalette.Charcoal,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(8.dp)
-                        .background(VintageColors.Parchment.copy(alpha = 0.8f))
+                        .background(ExplorerPalette.MapCream.copy(alpha = 0.8f))
                         .padding(4.dp)
                 )
             }
@@ -171,37 +171,37 @@ fun MainExplorerInterface(
             Spacer(Modifier.height(16.dp))
 
             // Footer: Field Notes (List)
-            if (logEntries.isNotEmpty()) {
+            if (journalEntries.isNotEmpty()) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().height(200.dp),
-                    color = VintageColors.Parchment,
-                    border = androidx.compose.foundation.BorderStroke(2.dp, VintageColors.InkBlue)
+                    color = ExplorerPalette.MapCream,
+                    border = androidx.compose.foundation.BorderStroke(2.dp, ExplorerPalette.DeepBlue)
                 ) {
-                    TravelLog(
-                        entries = logEntries,
-                        targetIndex = targetIndex,
-                        userLoc = userLoc,
-                        onSelect = { travelLogVM.setTarget(it) }
+                    FieldJournal(
+                        entries = journalEntries,
+                        targetIdx = targetIdx,
+                        userLoc = myLoc,
+                        onSelect = { journalVM.setTarget(it) }
                     )
                 }
             }
         }
 
-        if (showingPurgeConfirm) {
+        if (confirmDiscard) {
             AlertDialog(
-                onDismissRequest = { showingPurgeConfirm = false },
-                containerColor = VintageColors.Parchment,
-                title = { Text("Burn Field Notes?", style = VintageTypography.headlineMedium, color = VintageColors.OldRed) },
-                text = { Text("This will destroy all recorded coordinates forever.", style = VintageTypography.bodyLarge, color = VintageColors.InkBlack) },
+                onDismissRequest = { confirmDiscard = false },
+                containerColor = ExplorerPalette.MapCream,
+                title = { Text("Burn Field Notes?", style = LogbookFont.headlineMedium, color = ExplorerPalette.Crimson) },
+                text = { Text("This will destroy all recorded coordinates forever.", style = LogbookFont.bodyLarge, color = ExplorerPalette.Charcoal) },
                 confirmButton = {
                     Button(
-                        onClick = { travelLogVM.clearLog(); showingPurgeConfirm = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = VintageColors.OldRed)
-                    ) { Text("Burn", color = VintageColors.Parchment) }
+                        onClick = { journalVM.clearJournal(); confirmDiscard = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = ExplorerPalette.Crimson)
+                    ) { Text("Burn", color = ExplorerPalette.MapCream) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showingPurgeConfirm = false }) {
-                        Text("Keep", color = VintageColors.InkBlue)
+                    TextButton(onClick = { confirmDiscard = false }) {
+                        Text("Keep", color = ExplorerPalette.DeepBlue)
                     }
                 }
             )
@@ -217,14 +217,14 @@ fun MainExplorerInterface(
  * Styled Nautical Compass.
  */
 @Composable
-fun NauticalCompass(
-    rotationDesc: Float,
+fun CompassRose(
+    bearing: Float,
     selfLoc: Location?,
-    points: List<LocationPoint>,
+    sights: List<LocationPoint>,
     activePoint: LocationPoint?,
-    zoomMeters: Float,
+    scaleMeters: Float,
     onTapPoint: (LocationPoint) -> Unit,
-    onZoomChange: (Float) -> Unit,
+    onScaleChange: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -238,17 +238,17 @@ fun NauticalCompass(
                 val center = Offset(size.width / 2f, size.height / 2f)
                 detectTapGestures { tap ->
                     selfLoc?.let { me ->
-                        points.forEach { pt ->
-                            val dist = GeoMathUtils.computeDistance(me.latitude, me.longitude, pt.lat, pt.lng)
-                            val bear = GeoMathUtils.computeBearing(me.latitude, me.longitude, pt.lat, pt.lng)
-                            val r = (dist / zoomMeters) * (size.width / 2)
+                        sights.forEach { pt ->
+                            val dist = GeoMathUtils.calcDist(me.latitude, me.longitude, pt.lat, pt.lng)
+                            val bear = GeoMathUtils.calcBearing(me.latitude, me.longitude, pt.lat, pt.lng)
+                            val r = (dist / scaleMeters) * (size.width / 2)
                             val rad = Math.toRadians(bear.toDouble())
                             
                             val bx = center.x + (r * sin(rad)).toFloat()
                             val by = center.y - (r * cos(rad)).toFloat()
                             
                             // Rotate touch
-                            val ang = Math.toRadians(-rotationDesc.toDouble())
+                            val ang = Math.toRadians(-bearing.toDouble())
                             val dx = tap.x - center.x
                             val dy = tap.y - center.y
                             val rx = center.x + (dx * cos(ang) - dy * sin(ang)).toFloat()
@@ -261,28 +261,28 @@ fun NauticalCompass(
                     }
                 }
             }
-            .pointerInput(zoomMeters) {
+            .pointerInput(scaleMeters) {
                 detectTransformGestures { _, _, z, _ ->
-                    onZoomChange((zoomMeters / z).coerceIn(500f, 2000f))
+                    onScaleChange((scaleMeters / z).coerceIn(500f, 2000f))
                 }
             }
     ) {
         val radius = size.minDimension / 2
         
-        rotate(rotationDesc) {
+        rotate(bearing) {
             // Background Paper
-            drawCircle(color = VintageColors.Parchment, radius = radius)
+            drawCircle(color = ExplorerPalette.MapCream, radius = radius)
             
             // Outer Ring
             drawCircle(
-                color = VintageColors.InkBlue, 
+                color = ExplorerPalette.DeepBlue, 
                 radius = radius, 
                 style = Stroke(width = 4.dp.toPx())
             )
             
             // Inner decorative rings
             drawCircle(
-                color = VintageColors.Sepia.copy(alpha = 0.5f),
+                color = ExplorerPalette.OldSepia.copy(alpha = 0.5f),
                 radius = radius * 0.8f,
                 style = Stroke(width = 1.dp.toPx())
             )
@@ -297,7 +297,7 @@ fun NauticalCompass(
                 
                 drawIntoCanvas { 
                     val p = android.graphics.Paint().apply {
-                        color = if (txt=="N") VintageColors.OldRed.toArgb() else VintageColors.InkBlack.toArgb()
+                        color = if (txt=="N") ExplorerPalette.Crimson.toArgb() else ExplorerPalette.Charcoal.toArgb()
                         textSize = compassFontSize
                         textAlign = android.graphics.Paint.Align.CENTER
                         typeface = android.graphics.Typeface.SERIF
@@ -309,13 +309,13 @@ fun NauticalCompass(
             
             // Crosshairs
             drawLine(
-                color = VintageColors.FadedInk,
+                color = ExplorerPalette.SlateGray,
                 start = Offset(center.x - radius * 0.5f, center.y),
                 end = Offset(center.x + radius * 0.5f, center.y),
                 strokeWidth = 2f
             )
             drawLine(
-                color = VintageColors.FadedInk,
+                color = ExplorerPalette.SlateGray,
                 start = Offset(center.x, center.y - radius * 0.5f),
                 end = Offset(center.x, center.y + radius * 0.5f),
                 strokeWidth = 2f
@@ -323,10 +323,10 @@ fun NauticalCompass(
 
             // Marks
             selfLoc?.let { me ->
-                points.forEach { pt ->
-                    val dist = GeoMathUtils.computeDistance(me.latitude, me.longitude, pt.lat, pt.lng)
-                    val bear = GeoMathUtils.computeBearing(me.latitude, me.longitude, pt.lat, pt.lng)
-                    val r = (dist / zoomMeters) * radius
+                sights.forEach { pt ->
+                    val dist = GeoMathUtils.calcDist(me.latitude, me.longitude, pt.lat, pt.lng)
+                    val bear = GeoMathUtils.calcBearing(me.latitude, me.longitude, pt.lat, pt.lng)
+                    val r = (dist / scaleMeters) * radius
                     val rad = Math.toRadians(bear.toDouble())
                     
                     val bx = center.x + (r * sin(rad)).toFloat()
@@ -336,7 +336,7 @@ fun NauticalCompass(
                         val isTarget = activePoint == pt
                         // "X" marks the spot
                         val s = if (isTarget) 15f else 10f
-                        val c = if (isTarget) VintageColors.OldRed else VintageColors.InkBlue
+                        val c = if (isTarget) ExplorerPalette.Crimson else ExplorerPalette.DeepBlue
                         
                         drawLine(color = c, start = Offset(bx - s, by - s), end = Offset(bx + s, by + s), strokeWidth = 4f)
                         drawLine(color = c, start = Offset(bx + s, by - s), end = Offset(bx - s, by + s), strokeWidth = 4f)
@@ -345,14 +345,14 @@ fun NauticalCompass(
                 
                 activePoint?.let { tgt ->
                     // Navigation Line
-                    val bear = GeoMathUtils.computeBearing(me.latitude, me.longitude, tgt.lat, tgt.lng)
+                    val bear = GeoMathUtils.calcBearing(me.latitude, me.longitude, tgt.lat, tgt.lng)
                     val rad = Math.toRadians(bear.toDouble())
                     val len = radius * 0.7f
                     val ex = center.x + (len * sin(rad)).toFloat()
                     val ey = center.y - (len * cos(rad)).toFloat()
                     
                     drawLine(
-                        color = VintageColors.ForestGreen,
+                        color = ExplorerPalette.HunterGreen,
                         start = center, 
                         end = Offset(ex, ey),
                         strokeWidth = 3.dp.toPx()
@@ -364,45 +364,45 @@ fun NauticalCompass(
 }
 
 @Composable
-fun MapHeader(
+fun StatusReadout(
     navData: NavigatorViewModel.NavData,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
-            .background(VintageColors.Parchment)
-            .border(2.dp, VintageColors.InkBlue)
+            .background(ExplorerPalette.MapCream)
+            .border(2.dp, ExplorerPalette.DeepBlue)
             .padding(12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text("FIELD POSITION", style = VintageTypography.labelLarge, color = VintageColors.FadedInk)
+            Text("FIELD POSITION", style = LogbookFont.labelLarge, color = ExplorerPalette.SlateGray)
             if (navData.isActive) {
                 Text(
                     "DST: ${navData.dist.toInt()} m", 
-                    style = VintageTypography.headlineMedium, 
-                    color = VintageColors.InkBlack
+                    style = LogbookFont.headlineMedium, 
+                    color = ExplorerPalette.Charcoal
                 )
             } else {
-                Text("SCANNING...", style = VintageTypography.titleMedium, color = VintageColors.Sepia)
+                Text("SCANNING...", style = LogbookFont.titleMedium, color = ExplorerPalette.OldSepia)
             }
         }
         
         Column(horizontalAlignment = Alignment.End) {
-             Text("BEARING", style = VintageTypography.labelLarge, color = VintageColors.FadedInk)
+             Text("BEARING", style = LogbookFont.labelLarge, color = ExplorerPalette.SlateGray)
              Text(
                  "${navData.azi.toInt()}°", 
-                 style = VintageTypography.headlineMedium, 
-                 color = VintageColors.OldRed
+                 style = LogbookFont.headlineMedium, 
+                 color = ExplorerPalette.Crimson
              )
         }
     }
 }
 
 @Composable
-fun ActionPanel(
-    isRecording: Boolean,
+fun FieldControls(
+    trackingActive: Boolean,
     canMark: Boolean,
     hasBriefs: Boolean,
     onToggleRecord: () -> Unit,
@@ -415,20 +415,20 @@ fun ActionPanel(
                 onClick = onToggleRecord,
                 modifier = Modifier.weight(1f).height(50.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isRecording) VintageColors.LeatherBrown else VintageColors.InkBlue
+                    containerColor = if (trackingActive) ExplorerPalette.SaddleBrown else ExplorerPalette.DeepBlue
                 ),
                 shape = MaterialTheme.shapes.small
             ) {
-                Icon(if (isRecording) Icons.Default.Close else Icons.Default.Explore, null)
+                Icon(if (trackingActive) Icons.Default.Close else Icons.Default.Explore, null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (isRecording) "HALT" else "SURVEY")
+                Text(if (trackingActive) "HALT" else "SURVEY")
             }
             
-            if (isRecording) {
+            if (trackingActive) {
                  Button(
                     onClick = onMarkSpot,
                     enabled = canMark,
-                    colors = ButtonDefaults.buttonColors(containerColor = VintageColors.BurntOrange),
+                    colors = ButtonDefaults.buttonColors(containerColor = ExplorerPalette.RustOrange),
                     shape = MaterialTheme.shapes.small,
                     modifier = Modifier.height(50.dp)
                 ) {
@@ -443,8 +443,8 @@ fun ActionPanel(
             OutlinedButton(
                 onClick = onPurge, 
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = VintageColors.OldRed),
-                border = androidx.compose.foundation.BorderStroke(1.dp, VintageColors.OldRed)
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = ExplorerPalette.Crimson),
+                border = androidx.compose.foundation.BorderStroke(1.dp, ExplorerPalette.Crimson)
             ) {
                 Text("DISCARD ALL RECORDS")
             }
@@ -453,47 +453,47 @@ fun ActionPanel(
 }
 
 @Composable
-fun TravelLog(
+fun FieldJournal(
     entries: List<LocationPoint>,
-    targetIndex: Int?,
+    targetIdx: Int?,
     userLoc: Location?,
     onSelect: (Int) -> Unit
 ) {
     Column {
         Text(
             "FIELD NOTES", 
-            style = VintageTypography.labelLarge, 
-            modifier = Modifier.fillMaxWidth().background(VintageColors.Sepia).padding(8.dp),
-            color = VintageColors.Parchment
+            style = LogbookFont.labelLarge, 
+            modifier = Modifier.fillMaxWidth().background(ExplorerPalette.OldSepia).padding(8.dp),
+            color = ExplorerPalette.MapCream
         )
         LazyColumn(contentPadding = PaddingValues(8.dp)) {
             itemsIndexed(entries) { idx, item ->
-                val isSel = idx == targetIndex
+                val isSel = idx == targetIdx
                 val dist = userLoc?.let { 
-                    GeoMathUtils.computeDistance(it.latitude, it.longitude, item.lat, item.lng) 
+                    GeoMathUtils.calcDist(it.latitude, it.longitude, item.lat, item.lng) 
                 }
                 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 2.dp)
-                        .background(if (isSel) VintageColors.ParchmentDark else Color.Transparent)
+                        .background(if (isSel) ExplorerPalette.MapBeige else Color.Transparent)
                         .clickable { onSelect(idx) }
                         .padding(12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         "Entry #${idx + 1}", 
-                        style = VintageTypography.bodyLarge,
+                        style = LogbookFont.bodyLarge,
                         fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
                     )
                     Text(
                         if (dist != null) "${dist.toInt()} m" else "---",
-                        style = VintageTypography.bodyMedium,
-                        color = VintageColors.FadedInk
+                        style = LogbookFont.bodyMedium,
+                        color = ExplorerPalette.SlateGray
                     )
                 }
-                Divider(color = VintageColors.Sepia.copy(alpha = 0.2f))
+                Divider(color = ExplorerPalette.OldSepia.copy(alpha = 0.2f))
             }
         }
     }

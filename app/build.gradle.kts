@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.gpswaypointing"
+    namespace = "com.vintagenav.explorer"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.gpswaypointing"
+        applicationId = "com.vintagenav.explorer"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
