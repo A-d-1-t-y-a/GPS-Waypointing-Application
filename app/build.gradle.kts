@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.orion.navigator"
+    namespace = "com.zen.pathfinder"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.orion.navigator"
+        applicationId = "com.zen.pathfinder"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
