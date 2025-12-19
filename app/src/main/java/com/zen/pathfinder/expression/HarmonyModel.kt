@@ -1,12 +1,12 @@
-package com.zen.pathfinder.ui
+package com.zen.pathfinder.expression
 
 import android.location.Location
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zen.pathfinder.core.GuideStone
-import com.zen.pathfinder.core.StoneArchive
-import com.zen.pathfinder.core.ZenMath
+import com.zen.pathfinder.mind.GuideStone
+import com.zen.pathfinder.mind.StoneArchive
+import com.zen.pathfinder.mind.ZenMath
 import kotlinx.coroutines.launch
 
 class HarmonyModel(private val rep: StoneArchive) : ViewModel() {

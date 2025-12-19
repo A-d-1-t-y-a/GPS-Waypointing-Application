@@ -1,4 +1,4 @@
-package com.zen.pathfinder.core
+package com.zen.pathfinder.mind
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers

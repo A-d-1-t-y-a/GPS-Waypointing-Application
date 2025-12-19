@@ -1,4 +1,4 @@
-package com.zen.pathfinder.ui.theme
+package com.zen.pathfinder.expression.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme

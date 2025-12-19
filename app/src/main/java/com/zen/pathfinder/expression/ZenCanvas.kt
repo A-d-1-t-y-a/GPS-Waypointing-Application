@@ -1,4 +1,4 @@
-package com.zen.pathfinder.ui
+package com.zen.pathfinder.expression
 
 import android.location.Location
 import androidx.compose.animation.core.*
@@ -29,12 +29,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.zen.pathfinder.core.GuideStone
-import com.zen.pathfinder.core.StoneArchive
-import com.zen.pathfinder.core.ZenMath
-import com.zen.pathfinder.system.CompassSpirit
-import com.zen.pathfinder.system.PathSense
-import com.zen.pathfinder.ui.theme.ZenPalette
+import com.zen.pathfinder.mind.GuideStone
+import com.zen.pathfinder.mind.StoneArchive
+import com.zen.pathfinder.mind.ZenMath
+import com.zen.pathfinder.senses.CompassSpirit
+import com.zen.pathfinder.senses.PathSense
+import com.zen.pathfinder.expression.theme.ZenPalette
 import kotlin.math.*
 
 @Composable

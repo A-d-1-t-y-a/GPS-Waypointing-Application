@@ -4,12 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import com.zen.pathfinder.core.StoneArchive
-import com.zen.pathfinder.system.CompassSpirit
-import com.zen.pathfinder.system.PathSense
-import com.zen.pathfinder.ui.ZenCanvas
-import com.zen.pathfinder.ui.theme.ZenScheme
-import com.zen.pathfinder.ui.theme.ZenType
+import com.zen.pathfinder.mind.StoneArchive
+import com.zen.pathfinder.senses.CompassSpirit
+import com.zen.pathfinder.senses.PathSense
+import com.zen.pathfinder.expression.ZenCanvas
+import com.zen.pathfinder.expression.theme.ZenScheme
+import com.zen.pathfinder.expression.theme.ZenType
 
 class MainActivity : ComponentActivity() {
     private val req = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }

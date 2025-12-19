@@ -1,4 +1,4 @@
-package com.zen.pathfinder.system
+package com.zen.pathfinder.senses
 
 import android.annotation.SuppressLint
 import android.content.Context

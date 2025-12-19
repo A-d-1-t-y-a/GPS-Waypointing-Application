@@ -1,4 +1,4 @@
-package com.zen.pathfinder.core
+package com.zen.pathfinder.mind
 
 /**
  * Represents a marker on the path.
