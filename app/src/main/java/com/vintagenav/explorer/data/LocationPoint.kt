@@ -5,6 +5,6 @@ package com.vintagenav.explorer.data
  */
 data class LocationPoint(
     val lat: Double,
-    val lng: Double,z
+    val lng: Double,
     val timestamp: Long = System.currentTimeMillis()
 )
