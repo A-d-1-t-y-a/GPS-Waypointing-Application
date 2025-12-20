@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            GPSWaypointTheme {
+            ZenPathfinderTheme {
                 // Factory for ViewModel with arguments
                 val viewModel: AppViewModel = viewModel(
                     factory = object : ViewModelProvider.Factory {

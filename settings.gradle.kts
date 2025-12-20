@@ -14,6 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "GPS Waypointing App"
+rootProject.name = "Zen Pathfinder"
 include(":app")
-

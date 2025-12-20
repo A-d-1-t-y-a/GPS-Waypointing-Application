@@ -83,7 +83,7 @@ fun WaypointApp(
         containerColor = GoldenColors.Background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("GPS Waypoint", color = GoldenColors.OnPrimary) },
+                title = { Text("Zen Pathfinder", color = GoldenColors.OnPrimary) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = GoldenColors.Primary
                 )
