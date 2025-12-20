@@ -8,7 +8,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.zen.pathfinder"
+        applicationId = "com.example.gpswaypointing"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

@@ -4,33 +4,46 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import com.zen.pathfinder.mind.StoneArchive
-import com.zen.pathfinder.senses.CompassSpirit
-import com.zen.pathfinder.senses.PathSense
-import com.zen.pathfinder.expression.ZenCanvas
-import com.zen.pathfinder.expression.theme.ZenScheme
-import com.zen.pathfinder.expression.theme.ZenType
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 
 class MainActivity : ComponentActivity() {
-    private val req = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        val sense = PathSense(this)
-        val spirit = CompassSpirit(this)
-        val store = StoneArchive(this)
-        
-        if (!sense.allowed(this)) {
-            req.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        val gpsManager = GPSManager(this)
+        val compassSensor = CompassSensor(this)
+        val fileManager = WaypointFileManager(this)
+
+        // Check permissions immediately or let UI handle?
+        // "app will first check the availability of these permissions before performing GPS operations"
+        // I'll launch permission request here.
+        if (!gpsManager.hasLocationPermission(this)) {
+            requestPermissionLauncher.launch(
+                arrayOf(
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
         }
-        
+
         setContent {
-            androidx.compose.material3.MaterialTheme(
-                colorScheme = ZenScheme,
-                typography = ZenType
-            ) {
-                ZenCanvas(sense, spirit, store)
+            GPSWaypointTheme {
+                // Factory for ViewModel with arguments
+                val viewModel: AppViewModel = viewModel(
+                    factory = object : ViewModelProvider.Factory {
+                        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                            return AppViewModel(fileManager) as T
+                        }
+                    }
+                )
+                
+                WaypointApp(viewModel, gpsManager, compassSensor)
             }
         }
     }
