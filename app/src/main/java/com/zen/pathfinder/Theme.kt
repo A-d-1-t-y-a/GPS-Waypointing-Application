@@ -13,6 +13,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme()
@@ -23,13 +24,34 @@ fun GPSWaypointTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val colorScheme = if (darkTheme) {
+        // Dark Golden Theme
+        darkColorScheme(
+            primary = Color(0xFFD4AF37),
+            onPrimary = Color(0xFF1A1A1A),
+            primaryContainer = Color(0xFFB8860B),
+            onPrimaryContainer = Color(0xFFFFF8DC),
+            secondary = Color(0xFFFFD700),
+            onSecondary = Color(0xFF1A1A1A),
+            background = Color(0xFF121212),
+            onBackground = Color(0xFFE0E0E0),
+            surface = Color(0xFF1E1E1E),
+            onSurface = Color(0xFFE0E0E0)
+        )
+    } else {
+        // Light Golden Theme
+        lightColorScheme(
+            primary = Color(0xFFD4AF37),
+            onPrimary = Color(0xFF1A1A1A),
+            primaryContainer = Color(0xFFFFF8DC),
+            onPrimaryContainer = Color(0xFF8B4513),
+            secondary = Color(0xFFFFD700),
+            onSecondary = Color(0xFF1A1A1A),
+            background = Color(0xFFFFFBF0),
+            onBackground = Color(0xFF3D3D3D),
+            surface = Color(0xFFFFF8DC),
+            onSurface = Color(0xFF3D3D3D)
+        )
     }
 
     val view = LocalView.current
