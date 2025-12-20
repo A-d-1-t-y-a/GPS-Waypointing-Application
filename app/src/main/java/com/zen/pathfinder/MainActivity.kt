@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
                 val viewModel: AppViewModel = viewModel(
                     factory = object : ViewModelProvider.Factory {
                         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                            return AppViewModel(fileManager) as T
+                            return AppViewModel(fileManager, this@MainActivity) as T
                         }
                     }
                 )

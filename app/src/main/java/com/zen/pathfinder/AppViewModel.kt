@@ -8,7 +8,12 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 
-class AppViewModel(private val fileManager: WaypointFileManager) : ViewModel() {
+import android.content.Context
+import android.content.SharedPreferences
+
+class AppViewModel(private val fileManager: WaypointFileManager, context: Context) : ViewModel() {
+    
+    private val prefs: SharedPreferences = context.getSharedPreferences("pathfinder_prefs", Context.MODE_PRIVATE)
 
     var waypoints = mutableStateOf<List<WaypointData>>(emptyList())
         private set
@@ -26,6 +31,17 @@ class AppViewModel(private val fileManager: WaypointFileManager) : ViewModel() {
         // Load initial waypoints
         viewModelScope.launch {
             waypoints.value = fileManager.loadWaypoints()
+        }
+        
+        // Load last known location
+        val lat = prefs.getFloat("last_lat", Float.NaN)
+        val lon = prefs.getFloat("last_lon", Float.NaN)
+        if (!lat.isNaN() && !lon.isNaN()) {
+            val loc = Location("last_known")
+            loc.latitude = lat.toDouble()
+            loc.longitude = lon.toDouble()
+            loc.time = System.currentTimeMillis()
+            currentLocation.value = loc
         }
     }
 
@@ -60,6 +76,14 @@ class AppViewModel(private val fileManager: WaypointFileManager) : ViewModel() {
 
     fun updateLocation(location: Location) {
         currentLocation.value = location
+        
+        // Save to prefs
+        with(prefs.edit()) {
+            putFloat("last_lat", location.latitude.toFloat())
+            putFloat("last_lon", location.longitude.toFloat())
+            apply()
+        }
+        
         checkAutoNavigation(location)
     }
 
