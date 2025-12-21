@@ -14,28 +14,32 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CutCornerShape
-
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gpswaypointing.ui.theme.*
 import kotlin.math.*
+import kotlin.random.Random
 
 /**
  * Main screen composable that contains all UI elements.
@@ -63,25 +67,18 @@ fun MainScreen(
                         SensorManager.getRotationMatrixFromVector(rotationMatrix, it.values)
                         val orientationValues = FloatArray(3)
                         SensorManager.getOrientation(rotationMatrix, orientationValues)
-                        // Convert azimuth (radians) to degrees and adjust for compass
                         val azimuthDegrees = Math.toDegrees(orientationValues[0].toDouble()).toFloat()
-                        compassState.compassRotation = -azimuthDegrees // Negative to rotate compass correctly
+                        compassState.compassRotation = -azimuthDegrees
                     }
                 }
             }
-
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
 
         rotationVectorSensor?.let {
-            sensorManager.registerListener(
-                listener,
-                it,
-                SensorManager.SENSOR_DELAY_UI
-            )
+            sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_UI)
         }
 
-        // Cleanup on dispose
         onDispose {
             sensorManager.unregisterListener(listener)
         }
@@ -92,8 +89,6 @@ fun MainScreen(
         if (compassState.isTracking) {
             locationService.startTracking { location ->
                 compassState.currentLocation = location
-                
-                // Check if within 10m of selected waypoint and auto-select previous
                 compassState.selectedWaypointIndex?.let { currentIndex ->
                     val distance = compassState.getDistanceToSelectedWaypoint()
                     if (distance != null && distance <= 10f && currentIndex > 0) {
@@ -106,14 +101,13 @@ fun MainScreen(
         }
     }
 
-    // Main Container with Starfield Background
+    // Warp Speed Background + Chaos UI
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(SciFiBackground)
     ) {
-        // Decorative Grid Background
-        GridBackground()
+        WarpSpeedBackground()
 
         Column(
             modifier = Modifier
@@ -122,15 +116,14 @@ fun MainScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header
-            Text(
-                text = "NEON PATHFINDER",
+            // Glitchy Header
+            GlitchText(
+                text = "NEON CHAOS",
                 style = MaterialTheme.typography.headlineLarge,
-                color = NeonCyan,
                 modifier = Modifier.padding(top = 16.dp)
             )
 
-            // Radar HUD (Compass)
+            // Radar HUD
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -141,12 +134,13 @@ fun MainScreen(
                     compassState = compassState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f) // Force square
+                        .aspectRatio(1f)
                         .padding(8.dp)
+                        .pulseBorder(NeonCyan) // Add pulse effect to the whole radar
                 )
             }
 
-            // Data Info Panel (Distance/Bearing)
+            // Data Info Panel
             if (compassState.selectedWaypoint != null) {
                 val distance = compassState.getDistanceToSelectedWaypoint()
                 val bearing = compassState.getBearingToSelectedWaypoint()
@@ -156,11 +150,10 @@ fun MainScreen(
                     bearing = bearing
                 )
             } else {
-                // Spacer to keep layout stable
                 Spacer(modifier = Modifier.height(100.dp))
             }
 
-            // Waypoint Selection Grid
+            // Waypoint Selection
             if (compassState.waypoints.isNotEmpty()) {
                 WaypointSelectionGrid(
                     waypoints = compassState.waypoints,
@@ -172,13 +165,13 @@ fun MainScreen(
                 Spacer(modifier = Modifier.height(60.dp))
             }
 
-            // Control Buttons
+            // Controls
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 CyberButton(
-                    text = if (compassState.isTracking) "ABORT TRACKING" else "INITIATE TRACK",
+                    text = if (compassState.isTracking) "ABORT" else "ENGAGE",
                     onClick = { compassState.isTracking = !compassState.isTracking },
                     isWarning = compassState.isTracking,
                     modifier = Modifier.weight(1f)
@@ -186,7 +179,7 @@ fun MainScreen(
 
                 if (compassState.isTracking) {
                     CyberButton(
-                        text = "MARK WAYPOINT",
+                        text = "MARK",
                         onClick = {
                             compassState.currentLocation?.let { location ->
                                 val newWaypoint = Waypoint(
@@ -207,11 +200,10 @@ fun MainScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Clear confirmation dialog
         if (compassState.showClearDialog) {
             CyberAlertDialog(
-                title = "PURGE DATA?",
-                text = "CONFIRM DELETION OF ALL WAYPOINT COORDINATES. THIS ACTION IS IRREVERSIBLE.",
+                title = "SYSTEM PURGE",
+                text = "CONFIRM COMPLETE DATA WIPE.",
                 onConfirm = {
                     compassState.waypoints = emptyList()
                     compassState.selectedWaypointIndex = null
@@ -224,25 +216,186 @@ fun MainScreen(
     }
 }
 
+// --- ANIMATION COMPONENTS ---
+
 /**
- * Custom Radar HUD View (Replaces CompassView)
+ * Starfield effect that moves stars outward from center to simulate warp speed.
  */
+@Composable
+fun WarpSpeedBackground() {
+    val infiniteTransition = rememberInfiniteTransition(label = "WarpTime")
+    val time by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(10000, easing = LinearEasing)
+        ),
+        label = "Time"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val centerX = size.width / 2
+        val centerY = size.height / 2
+        
+        // Pseudo-random stars based on time to create movement "flow"
+        // In a real game engine we'd use particle objects, here we use procedural generation in draw loop
+        // We simulate particles effectively by hashing index + time
+        
+        val numStars = 150
+        val maxRadius = sqrt(centerX.pow(2) + centerY.pow(2))
+        
+        for (i in 0 until numStars) {
+            // Seed random with star index to keep direction constant
+            val random = Random(i)
+            val angle = random.nextFloat() * 2 * PI
+            val speed = random.nextFloat() * 2f + 0.5f
+            val offset = random.nextFloat() * maxRadius // Initial offset
+            
+            // Calculate current radius based on loops
+            // We want (offset + time * speed) % maxRadius
+            // currentRadius needs to grow
+            
+            // Using frame time directly for smooth animation
+            val rawRadius = (offset + (System.currentTimeMillis() % 3000) * speed * 0.5f)
+            val currentRadius = rawRadius % maxRadius
+            
+            val starX = centerX + (currentRadius * cos(angle)).toFloat()
+            val starY = centerY + (currentRadius * sin(angle)).toFloat()
+            
+            // Star size grows as it gets closer
+            val starSize = (currentRadius / maxRadius) * 4.dp.toPx()
+            val starAlpha = (currentRadius / maxRadius).coerceIn(0.0, 1.0).toFloat()
+
+            drawCircle(
+                color = if (i % 5 == 0) NeonMagenta else NeonCyan,
+                radius = starSize,
+                center = Offset(starX, starY),
+                alpha = starAlpha
+            )
+            
+            // Draw trails for warp effect
+            if (currentRadius > 50f) {
+                val trailLength = starSize * 10
+                val trailEndX = centerX + ((currentRadius - trailLength) * cos(angle)).toFloat()
+                val trailEndY = centerY + ((currentRadius - trailLength) * sin(angle)).toFloat()
+                
+                drawLine(
+                    color = if (i % 5 == 0) NeonMagenta else NeonCyan,
+                    start = Offset(starX, starY),
+                    end = Offset(trailEndX, trailEndY),
+                    strokeWidth = starSize / 2,
+                    alpha = starAlpha * 0.5f
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Text that jitters and splits channels
+ */
+@Composable
+fun GlitchText(
+    text: String,
+    modifier: Modifier = Modifier,
+    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyLarge
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "Glitch")
+    val offsetX by infiniteTransition.animateFloat(
+        initialValue = -2f,
+        targetValue = 2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(100, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "GlitchOffset"
+    )
+    val colorShift by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(150, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "ColorShift"
+    )
+
+    Box(modifier = modifier) {
+        // Red Channel Clone
+        Text(
+            text = text,
+            style = style.copy(color = NeonMagenta.copy(alpha = 0.7f)),
+            modifier = Modifier.offset(x = offsetX.dp, y = 0.dp)
+        )
+        // Cyan Channel Clone
+        Text(
+            text = text,
+            style = style.copy(color = NeonCyan.copy(alpha = 0.7f)),
+            modifier = Modifier.offset(x = (-offsetX).dp, y = 0.dp)
+        )
+        // Main Text
+        Text(
+            text = text,
+            style = style.copy(color = Color.White),
+            modifier = Modifier.offset(x = 0.dp, y = (if (colorShift > 0.9) 1 else 0).dp)
+        )
+    }
+}
+
+/**
+ * Modifier to add a pulsating neon border
+ */
+fun Modifier.pulseBorder(color: Color): Modifier = composed {
+    val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseAlpha"
+    )
+    val width by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseWidth"
+    )
+
+    this.border(width.dp, color.copy(alpha = alpha), CutCornerShape(8.dp))
+}
+
+// --- UPDATED CORE COMPONENTS ---
+
 @Composable
 fun RadarHudView(
     compassState: CompassState,
     modifier: Modifier = Modifier
 ) {
-    val density = LocalDensity.current
-    
-    // Animation for scanning line
+    // Faster scan for chaos mode
     val infiniteTransition = rememberInfiniteTransition(label = "RadarScan")
     val scanAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing)
+            animation = tween(1000, easing = LinearEasing) // Faster scan
         ),
         label = "ScanAngle"
+    )
+    
+    // Jitter rotation for 'malfunction' effect
+    val jitter by infiniteTransition.animateFloat(
+        initialValue = -0.5f,
+        targetValue = 0.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(50, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Jitter"
     )
 
     Canvas(
@@ -264,54 +417,41 @@ fun RadarHudView(
         val radius = min(size.width, size.height) / 2
         val radarRadius = radius * 0.9f
 
-        // Draw Outer Ring
+        // Draw Static Noise (Random lines)
+        repeat(5) {
+            val startX = Random.nextFloat() * size.width
+            val startY = Random.nextFloat() * size.height
+            val endX = startX + Random.nextFloat() * 20 - 10
+            drawCircle(
+                color = NeonCyan.copy(alpha = 0.2f),
+                radius = 1f,
+                center = Offset(startX, startY)
+            )
+        }
+
+        // Draw Dynamic Rings
         drawCircle(
             color = NeonCyan,
             radius = radarRadius,
             center = Offset(centerX, centerY),
             style = Stroke(width = 2.dp.toPx())
         )
-        
-        // Draw Inner Rings
+        // Pulsing inner ring
+        val pulseScale = (sin(System.currentTimeMillis() / 200.0) * 0.05 + 0.6).toFloat()
         drawCircle(
-            color = NeonCyan.copy(alpha = 0.5f),
-            radius = radarRadius * 0.66f,
-            center = Offset(centerX, centerY),
-            style = Stroke(width = 1.dp.toPx())
-        )
-        drawCircle(
-            color = NeonCyan.copy(alpha = 0.3f),
-            radius = radarRadius * 0.33f,
+            color = NeonMagenta.copy(alpha = 0.5f),
+            radius = radarRadius * pulseScale,
             center = Offset(centerX, centerY),
             style = Stroke(width = 1.dp.toPx())
         )
 
-        // Draw Crosshairs
-        drawLine(
-            color = NeonCyan.copy(alpha = 0.3f),
-            start = Offset(centerX - radarRadius, centerY),
-            end = Offset(centerX + radarRadius, centerY),
-            strokeWidth = 1.dp.toPx()
-        )
-        drawLine(
-            color = NeonCyan.copy(alpha = 0.3f),
-            start = Offset(centerX, centerY - radarRadius),
-            end = Offset(centerX, centerY + radarRadius),
-            strokeWidth = 1.dp.toPx()
-        )
-
-        // Save canvas for rotation
-        drawContext.canvas.save()
-
-        // Rotate for Compass Heading
+        // Rotate for Compass Heading + Jitter
         rotate(
-            degrees = compassState.compassRotation,
+            degrees = compassState.compassRotation + jitter,
             pivot = Offset(centerX, centerY)
         ) {
             // Draw Cardinal Directions (Technical Style)
-            val directions = listOf(
-                "N" to 0f, "E" to 90f, "S" to 180f, "W" to 270f
-            )
+            val directions = listOf("N", "E", "S", "W")
             val paint = android.graphics.Paint().apply {
                 textAlign = android.graphics.Paint.Align.CENTER
                 textSize = 24.sp.toPx()
@@ -319,33 +459,19 @@ fun RadarHudView(
                 isFakeBoldText = true
             }
 
-            directions.forEach { (label, angle) ->
+            directions.forEachIndexed { index, label ->
+                val angle = index * 90f
                 val angleRad = Math.toRadians(angle.toDouble())
                 val textX = centerX + (radarRadius * 1.1f * sin(angleRad)).toFloat()
                 val textY = centerY - (radarRadius * 1.1f * cos(angleRad)).toFloat()
 
+                // Glitchy text color
                 paint.color = if (label == "N") NeonMagenta.toArgb() else NeonCyan.toArgb()
-                
-                drawContext.canvas.nativeCanvas.drawText(label, textX, textY + 10f, paint) // +10f for vertical centering approximation
+                if (Random.nextFloat() > 0.95) paint.color = Color.White.toArgb() // Random white flash
+
+                drawContext.canvas.nativeCanvas.drawText(label, textX, textY + 10f, paint)
             }
             
-            // Draw Degree Ticks
-            for (i in 0 until 360 step 30) {
-                if (i % 90 == 0) continue // Skip cardinals
-                val angleRad = Math.toRadians(i.toDouble())
-                val startX = centerX + (radarRadius * 0.95f * sin(angleRad)).toFloat()
-                val startY = centerY - (radarRadius * 0.95f * cos(angleRad)).toFloat()
-                val endX = centerX + (radarRadius * 1.0f * sin(angleRad)).toFloat()
-                val endY = centerY - (radarRadius * 1.0f * cos(angleRad)).toFloat()
-                
-                drawLine(
-                    color = NeonCyan.copy(alpha = 0.6f),
-                    start = Offset(startX, startY),
-                    end = Offset(endX, endY),
-                    strokeWidth = 2.dp.toPx()
-                )
-            }
-
             // Draw Waypoints (Blips)
             compassState.currentLocation?.let { location ->
                 compassState.getWaypointsInRange().forEach { waypoint ->
@@ -358,37 +484,21 @@ fun RadarHudView(
                     
                     val bearingRad = Math.toRadians(bearing.toDouble())
                     val scanScale = distance / compassState.scaleMeters
-                    val blipDistance = scanScale * radarRadius // Map distance to radius inside radar
+                    val blipDistance = scanScale * radarRadius
                     
                     val blipX = centerX + (blipDistance * sin(bearingRad)).toFloat()
                     val blipY = centerY - (blipDistance * cos(bearingRad)).toFloat()
 
-                    // Pulse effect for selected
                     val isSelected = compassState.selectedWaypoint == waypoint
                     val blipColor = if (isSelected) NeonMagenta else NeonCyan
-                    val blipRadius = if (isSelected) 8.dp.toPx() else 5.dp.toPx()
-
-                    drawCircle(
-                        color = blipColor,
-                        radius = blipRadius,
-                        center = Offset(blipX, blipY)
-                    )
                     
+                    // Draw Blip
+                    drawCircle(color = blipColor, radius = 6.dp.toPx(), center = Offset(blipX, blipY))
+
+                    // Draw connecting line to center
                     if (isSelected) {
-                        drawCircle(
-                            color = blipColor,
-                            radius = blipRadius * 1.5f,
-                            center = Offset(blipX, blipY),
-                            style = Stroke(width = 2.dp.toPx())
-                        )
-                        
-                        // Draw navigation line to blip
                         drawLine(
-                            brush = Brush.linearGradient(
-                                colors = listOf(NeonMagenta.copy(alpha = 0f), NeonMagenta),
-                                start = Offset(centerX, centerY),
-                                end = Offset(blipX, blipY)
-                            ),
+                            color = NeonMagenta.copy(alpha = 0.5f),
                             start = Offset(centerX, centerY),
                             end = Offset(blipX, blipY),
                             strokeWidth = 2.dp.toPx()
@@ -398,22 +508,13 @@ fun RadarHudView(
             }
         }
         
-        drawContext.canvas.restore()
-
-        // Draw Player Centroid
-        drawCircle(
-            color = Color.White,
-            radius = 4.dp.toPx(),
-            center = Offset(centerX, centerY)
-        )
-        
         // Draw Scanning Sweep
         rotate(scanAngle, pivot = Offset(centerX, centerY)) {
             drawArc(
                 brush = Brush.sweepGradient(
                     0.0f to Color.Transparent,
                     0.7f to Color.Transparent,
-                    1.0f to NeonCyan.copy(alpha = 0.5f),
+                    1.0f to NeonCyan.copy(alpha = 0.8f),
                     center = Offset(centerX, centerY)
                 ),
                 startAngle = -90f,
@@ -426,7 +527,7 @@ fun RadarHudView(
     }
 }
 
-// Logic extract for handling taps (similar to previous CompassView)
+// Helper for Radar Taps
 private fun handleRadarTap(
     tapOffset: Offset,
     compassState: CompassState,
@@ -450,16 +551,11 @@ private fun handleRadarTap(
             val bearingRad = Math.toRadians(bearing.toDouble())
             val blipDistance = (distance / compassState.scaleMeters) * radarRadius
             
-            // Calculate waypoint position in rotated coordinate system (screen relative)
-            // But wait! We need to account for compass rotation to map screen tap to world bearing
-            // Or simpler: project waypoint to screen coordinates like we do in Draw
-            
-            // Projection logic derived from Draw Loop:
-            // 1. Waypoint relative to North
+            // Project waypoint relative to North (up)
             val waypointX_North = centerX + (blipDistance * sin(bearingRad)).toFloat()
             val waypointY_North = centerY - (blipDistance * cos(bearingRad)).toFloat()
             
-            // 2. Rotate this point around center by compassRotation to get Screen Coordinates
+            // Rotate around center by compass Rotation to match screen space
             val rotationRad = Math.toRadians(compassState.compassRotation.toDouble())
             val dx = waypointX_North - centerX
             val dy = waypointY_North - centerY
@@ -467,10 +563,8 @@ private fun handleRadarTap(
             val screenX = centerX + (dx * cos(rotationRad) - dy * sin(rotationRad)).toFloat()
             val screenY = centerY + (dx * sin(rotationRad) + dy * cos(rotationRad)).toFloat()
             
-            // Check distance from tap
             val touchDist = sqrt((tapOffset.x - screenX).pow(2) + (tapOffset.y - screenY).pow(2))
             
-            // 30dp touch target roughly
             if (touchDist < 50f) { 
                 val actualIndex = compassState.waypoints.indexOf(waypoint)
                 if (actualIndex >= 0) {
@@ -481,9 +575,6 @@ private fun handleRadarTap(
     }
 }
 
-/**
- * Futuristic Button Component
- */
 @Composable
 fun CyberButton(
     text: String,
@@ -497,68 +588,50 @@ fun CyberButton(
     Box(
         modifier = modifier
             .height(50.dp)
-            .clip(CutCornerShape(topStart = 10.dp, bottomEnd = 10.dp))
+            .pulseBorder(mainColor) // Add Pulse Border
+            .clip(CutCornerShape(8.dp))
             .background(mainColor.copy(alpha = 0.1f))
-            .border(1.dp, mainColor, CutCornerShape(topStart = 10.dp, bottomEnd = 10.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
+        GlitchText(
             text = text,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (enabled) mainColor else Color.Gray,
-            fontWeight = FontWeight.Bold
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = FontWeight.Bold,
+                color = if (enabled) mainColor else Color.Gray
+            )
         )
     }
 }
 
-/**
- * Data Display Panel
- */
 @Composable
-fun DataHudPanel(
-    distance: Float?,
-    bearing: Float?
-) {
+fun DataHudPanel(distance: Float?, bearing: Float?) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, NeonCyan, CutCornerShape(4.dp))
+            .pulseBorder(NeonCyan)
             .background(DarkGlass)
             .padding(16.dp),
         horizontalArrangement = Arrangement.SpaceAround
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "DISTANCE", style = MaterialTheme.typography.labelSmall, color = TextUnselected)
-            Text(
+            Text("PROXIMITY", color = TextUnselected, style = MaterialTheme.typography.labelSmall)
+            GlitchText(
                 text = "${distance?.toInt() ?: 0} M",
-                style = MaterialTheme.typography.headlineLarge,
-                color = NeonCyan
+                style = MaterialTheme.typography.headlineLarge
             )
         }
-        
-        Box(
-            modifier = Modifier
-                .width(1.dp)
-                .height(40.dp)
-                .background(NeonCyan.copy(alpha = 0.5f))
-        )
-
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "BEARING", style = MaterialTheme.typography.labelSmall, color = TextUnselected)
-            Text(
+            Text("VECTOR", color = TextUnselected, style = MaterialTheme.typography.labelSmall)
+            GlitchText(
                 text = "${bearing?.toInt() ?: 0}°",
-                style = MaterialTheme.typography.headlineLarge,
-                color = NeonMagenta
+                style = MaterialTheme.typography.headlineLarge
             )
         }
     }
 }
 
-/**
- * Grid Selection for Waypoints
- */
 @Composable
 fun WaypointSelectionGrid(
     waypoints: List<Waypoint>,
@@ -574,26 +647,19 @@ fun WaypointSelectionGrid(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "TARGETS DETECTED: ${waypoints.size}", color = NeonCyan, style = MaterialTheme.typography.labelSmall)
+            Text("TARGET LIST [${waypoints.size}]", color = NeonCyan, style = MaterialTheme.typography.labelSmall)
             Text(
-                text = "CLEAR ALL",
+                text = "PURGE",
                 color = NeonMagenta,
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.clickable { onClear() }
             )
         }
-        
         Spacer(modifier = Modifier.height(8.dp))
         
-        // Horizontal scrollable row for chips if many, or grid. 
-        // For simplicity with variable width, using a FlowRow-like structure or just a simple Row with weight
-        // Since we don't have FlowRow in older material3 stable easily, let's use a Row with horizontal scroll
-        androidx.compose.foundation.lazy.LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(waypoints.size) { index ->
                 val isSelected = selectedIndex == index
                 Box(
@@ -607,7 +673,7 @@ fun WaypointSelectionGrid(
                     Text(
                         text = "${index + 1}",
                         color = if (isSelected) Color.Black else NeonCyan,
-                        style = MaterialTheme.typography.labelLarge
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -615,9 +681,6 @@ fun WaypointSelectionGrid(
     }
 }
 
-/**
- * Custom Alert Dialog
- */
 @Composable
 fun CyberAlertDialog(
     title: String,
@@ -628,52 +691,20 @@ fun CyberAlertDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = DeepBlack,
-        title = { Text(title, color = NeonMagenta, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace) },
+        title = { GlitchText(title, style = MaterialTheme.typography.titleLarge) },
         text = { Text(text, color = NeonCyan, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace) },
         confirmButton = {
             CyberButton(
-                text = "CONFIRM",
+                text = "EXECUTE",
                 onClick = onConfirm,
                 isWarning = true,
-                modifier = Modifier.width(100.dp)
+                modifier = Modifier.width(120.dp)
             )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("CANCEL", color = TextUnselected)
-            }
+            TextButton(onClick = onDismiss) { Text("ABORT", color = TextUnselected) }
         },
         shape = CutCornerShape(16.dp),
         modifier = Modifier.border(1.dp, NeonMagenta, CutCornerShape(16.dp))
     )
-}
-
-/**
- * Decorative Grid Background
- */
-@Composable
-fun GridBackground() {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val step = 40.dp.toPx()
-        val width = size.width
-        val height = size.height
-        
-        for (x in 0..width.toInt() step step.toInt()) {
-            drawLine(
-                color = GridLine,
-                start = Offset(x.toFloat(), 0f),
-                end = Offset(x.toFloat(), height),
-                strokeWidth = 1f
-            )
-        }
-        
-        for (y in 0..height.toInt() step step.toInt()) {
-            drawLine(
-                color = GridLine,
-                start = Offset(0f, y.toFloat()),
-                end = Offset(width, y.toFloat()),
-                strokeWidth = 1f
-            )
-        }
-    }
 }
