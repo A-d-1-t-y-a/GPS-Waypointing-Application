@@ -14,6 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "GPS Waypointing App"
+rootProject.name = "Vintage Navigator"
 include(":app")
 

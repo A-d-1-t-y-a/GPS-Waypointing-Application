@@ -334,12 +334,25 @@ fun CompassRose(
                     
                     if (r <= radius) {
                         val isTarget = activePoint == pt
-                        // "X" marks the spot
-                        val s = if (isTarget) 15f else 10f
-                        val c = if (isTarget) ExplorerPalette.Crimson else ExplorerPalette.DeepBlue
+                        // "Coloured circles" for waypoints
+                        val radiusVal = if (isTarget) 15f else 10f
+                        val colorVal = if (isTarget) ExplorerPalette.Crimson else ExplorerPalette.DeepBlue
                         
-                        drawLine(color = c, start = Offset(bx - s, by - s), end = Offset(bx + s, by + s), strokeWidth = 4f)
-                        drawLine(color = c, start = Offset(bx + s, by - s), end = Offset(bx - s, by + s), strokeWidth = 4f)
+                        drawCircle(
+                            color = colorVal,
+                            radius = radiusVal,
+                            center = Offset(bx, by)
+                        )
+                        
+                        // Highlight selected with an extra ring
+                        if (isTarget) {
+                            drawCircle(
+                                color = ExplorerPalette.Charcoal,
+                                radius = radiusVal + 5f,
+                                center = Offset(bx, by),
+                                style = Stroke(width = 2f)
+                            )
+                        }
                     }
                 }
                 

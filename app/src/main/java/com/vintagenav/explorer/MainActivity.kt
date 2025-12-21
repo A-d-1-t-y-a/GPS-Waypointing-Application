@@ -11,7 +11,7 @@ import com.vintagenav.explorer.service.OrientationProvider
 import com.vintagenav.explorer.theme.ExpeditionTheme
 
 /**
- * Entry point for the Vintage Edition GPS Tracker.
+ * Entry point for the Vintage Navigator Application.
  */
 class MainActivity : ComponentActivity() {
 

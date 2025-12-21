@@ -91,22 +91,23 @@ class TravelLogViewModel(
     }
     
     private fun checkAutoSelection(currentLoc: Location) {
-        val previousTarget = _targetIdx.value?.let { _journalEntries.value.getOrNull(it) }
-        
-        // If we have a target active, check if we actively reached it? 
-        // Or assignment says "auto-select previous waypoint". 
-        // "Logic for auto-selecting a previous waypoint when the user walks close enough to it (within 10m)."
-        
-        // Let's find the closest waypoint within 10m
-        val closestIndex = _journalEntries.value.indexOfFirst { pt ->
-            GeoMathUtils.calcDist(
-                currentLoc.latitude, currentLoc.longitude,
-                pt.lat, pt.lng
-            ) < 10.0f
-        }
-        
-        if (closestIndex != -1 && closestIndex != _targetIdx.value) {
-            _targetIdx.value = closestIndex
+        val currentIdx = _targetIdx.value ?: return
+        val targetPoint = _journalEntries.value.getOrNull(currentIdx) ?: return
+
+        val dist = GeoMathUtils.calcDist(
+            currentLoc.latitude, currentLoc.longitude,
+            targetPoint.lat, targetPoint.lng
+        )
+
+        // Requirement: "The previous waypoint should be automatically selected when a user gets within 10 metres of the current waypoint"
+        if (dist < 10.0f) {
+            if (currentIdx > 0) {
+                // Determine previous waypoint
+                _targetIdx.value = currentIdx - 1
+            } else {
+                // Reached the first recorded point (Start)
+                _targetIdx.value = null
+            }
         }
     }
 }
