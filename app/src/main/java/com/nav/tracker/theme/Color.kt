@@ -2,6 +2,10 @@ package com.nav.tracker.theme
 
 import androidx.compose.ui.graphics.Color
 
+/**
+ * Color Palette Definition.
+ * Defines the main colors used in the Sci-Fi theme.
+ */
 object NavPalette {
     val CoreCyan = Color(0xFF00E5FF)
     val VoidBlack = Color(0xFF050505)

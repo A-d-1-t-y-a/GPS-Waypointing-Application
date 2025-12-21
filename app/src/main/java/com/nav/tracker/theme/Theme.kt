@@ -10,6 +10,9 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+/**
+ * Dark color scheme for the application.
+ */
 private val NavScheme = darkColorScheme(
     primary = NavPalette.CoreCyan,
     background = NavPalette.VoidBlack,
@@ -20,6 +23,11 @@ private val NavScheme = darkColorScheme(
     onSurface = NavPalette.TextMain
 )
 
+/**
+ * Main Theme Composable.
+ * Configures the app's look and feel, including status bars.
+ * @param content The composable content to style.
+ */
 @Composable
 fun NavTheme(
     content: @Composable () -> Unit
