@@ -2,18 +2,20 @@ package com.example.gpswaypointing.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val NeonCyan = Color(0xFF00F0FF)
-val NeonMagenta = Color(0xFFFF003C)
-val DeepBlack = Color(0xFF050B14)
-val VoidBlack = Color(0xFF000000)
-val DarkGlass = Color(0x99050B14)
-val MatrixGreen = Color(0xFF00FF41)
-val GridLine = Color(0xFF2A2A2A)
-val TextUnselected = Color(0xFF666666)
+// Clean, Professional Palette
+val PrimaryBlue = Color(0xFF1976D2)
+val SecondaryOrange = Color(0xFFFF9800)
+val BackgroundWhite = Color(0xFFF5F5F5)
+val SurfaceWhite = Color(0xFFFFFFFF)
+val TextBlack = Color(0xFF212121)
+val TextGray = Color(0xFF757575)
+val SuccessGreen = Color(0xFF4CAF50)
+val ErrorRed = Color(0xFFD32F2F)
 
-val SciFiPrimary = NeonCyan
-val SciFiSecondary = NeonMagenta
-val SciFiBackground = DeepBlack
-val SciFiSurface = DarkGlass
-val SciFiOnPrimary = Color.Black
-val SciFiOnBackground = NeonCyan
+// Dark Theme Variants
+val PrimaryBlueDark = Color(0xFF90CAF9)
+val SecondaryOrangeDark = Color(0xFFFFCC80)
+val BackgroundDark = Color(0xFF121212)
+val SurfaceDark = Color(0xFF1E1E1E)
+val TextWhite = Color(0xFFE0E0E0)
+val TextGrayDark = Color(0xFFB0B0B0)
