@@ -216,7 +216,8 @@ fun RadarDisplay(
                             val bx = c.x + (r * sin(rad)).toFloat()
                             val by = c.y - (r * cos(rad)).toFloat()
                             
-                            val ang = Math.toRadians(-azi.toDouble())
+                            // Invert the canvas rotation (-azi) to map tap to world space
+                            val ang = Math.toRadians(azi.toDouble())
                             val dx = tap.x - c.x
                             val dy = tap.y - c.y
                             val rx = c.x + (dx * cos(ang) - dy * sin(ang)).toFloat()
@@ -237,7 +238,7 @@ fun RadarDisplay(
         val gridColor = NavPalette.GridLine.copy(alpha = 0.3f)
         val gridDim = NavPalette.GridLine.copy(alpha = 0.2f)
         
-        rotate(azi) {
+        rotate(-azi) {
             drawCircle(
                 color = NavPalette.VoidGrey,
                 radius = r,
@@ -325,7 +326,7 @@ fun RadarDisplay(
         }
         
         // Compass Directions
-        rotate(azi) {
+        rotate(-azi) {
             drawIntoCanvas { 
                 val p = android.graphics.Paint().apply { 
                     textSize = 40f; textAlign = android.graphics.Paint.Align.CENTER; isFakeBoldText = true 

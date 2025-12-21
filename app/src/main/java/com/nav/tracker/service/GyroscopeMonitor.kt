@@ -9,9 +9,18 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
+/**
+ * Monitor for the device Gyroscope/Rotation Sensor.
+ * Provides a stream of azimuth updates.
+ * @param ctx Android Context.
+ */
 class GyroscopeMonitor(ctx: Context) {
     private val mgr = ctx.getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
+    /**
+     * Starts listening to sensor updates.
+     * @return Flow of azimuth values in degrees (0..360).
+     */
     fun streamAzimuth(): Flow<Float> = callbackFlow {
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {

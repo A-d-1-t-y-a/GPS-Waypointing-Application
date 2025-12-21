@@ -9,6 +9,9 @@ import com.nav.tracker.domain.usecase.MeasureDistance
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
+/**
+ * ViewModel responsible for guidance logic (Distance and Bearing to target).
+ */
 class GuidanceViewModel : ViewModel() {
     private val distOp = MeasureDistance()
     private val bearOp = MeasureBearing()
@@ -16,6 +19,11 @@ class GuidanceViewModel : ViewModel() {
     private val _status = MutableStateFlow<GuidanceStatus>(GuidanceStatus.Standby)
     val status: StateFlow<GuidanceStatus> = _status
 
+    /**
+     * Recalculates guidance data based on new location.
+     * @param loc Current user location.
+     * @param target Target beacon.
+     */
     fun refresh(loc: Location, target: NavBeacon?) {
         if (target == null) {
             _status.value = GuidanceStatus.Standby
