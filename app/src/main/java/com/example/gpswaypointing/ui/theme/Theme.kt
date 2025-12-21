@@ -5,55 +5,47 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = androidx.compose.ui.graphics.Color(0xFFBB86FC),
-    secondary = androidx.compose.ui.graphics.Color(0xFF03DAC6),
-    tertiary = androidx.compose.ui.graphics.Color(0xFF3700B3)
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = androidx.compose.ui.graphics.Color(0xFF6200EE),
-    secondary = androidx.compose.ui.graphics.Color(0xFF03DAC6),
-    tertiary = androidx.compose.ui.graphics.Color(0xFF3700B3)
+    primary = SciFiPrimary,
+    secondary = SciFiSecondary,
+    tertiary = MatrixGreen,
+    background = SciFiBackground,
+    surface = SciFiSurface,
+    onPrimary = SciFiOnPrimary,
+    onSecondary = SciFiOnPrimary, // Black text on neon
+    onTertiary = SciFiOnPrimary,
+    onBackground = SciFiOnBackground,
+    onSurface = SciFiOnBackground
 )
 
 @Composable
 fun GPSWaypointingTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    darkTheme: Boolean = true, // Force dark theme for Sci-Fi look
+    // internal parameters can be unused as we force specific look
+    dynamicColor: Boolean = false, // Disable dynamic color to enforce theme
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
+    // We strictly use the custom DarkColorScheme
+    val colorScheme = DarkColorScheme
 
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+            window.statusBarColor = colorScheme.background.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = androidx.compose.material3.Typography(),
+        typography = Typography,
         content = content
     )
 }

@@ -5,28 +5,36 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.location.Location
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CutCornerShape
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.nativeCanvas
+import com.example.gpswaypointing.ui.theme.*
 import kotlin.math.*
 
 /**
@@ -98,387 +106,574 @@ fun MainScreen(
         }
     }
 
-    Column(
+    // Main Container with Starfield Background
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .background(SciFiBackground)
     ) {
-        // Compass View
-        CompassView(
-            compassState = compassState,
+        // Decorative Grid Background
+        GridBackground()
+
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f) // Force square
-        )
-
-        // Distance and bearing display
-        if (compassState.selectedWaypoint != null) {
-            val distance = compassState.getDistanceToSelectedWaypoint()
-            val bearing = compassState.getBearingToSelectedWaypoint()
-            
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Distance: ${distance?.toInt() ?: 0}m",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (bearing != null) {
-                        Text(
-                            text = "Bearing: ${bearing.toInt()}°",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
-        }
-
-        // Control buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Button(
-                onClick = {
-                    compassState.isTracking = !compassState.isTracking
-                },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (compassState.isTracking) 
-                        MaterialTheme.colorScheme.error 
-                    else 
-                        MaterialTheme.colorScheme.primary
+            // Header
+            Text(
+                text = "NEON PATHFINDER",
+                style = MaterialTheme.typography.headlineLarge,
+                color = NeonCyan,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+
+            // Radar HUD (Compass)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                 RadarHudView(
+                    compassState = compassState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f) // Force square
+                        .padding(8.dp)
                 )
-            ) {
-                Text(if (compassState.isTracking) "Stop Tracking" else "Start Tracking")
             }
 
-            if (compassState.isTracking) {
-                Button(
-                    onClick = {
-                        compassState.currentLocation?.let { location ->
-                            val newWaypoint = Waypoint(
-                                latitude = location.latitude,
-                                longitude = location.longitude
-                            )
-                            val updatedWaypoints = compassState.waypoints + newWaypoint
-                            compassState.waypoints = updatedWaypoints
-                            waypointRepository.saveWaypoints(updatedWaypoints)
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = compassState.currentLocation != null
-                ) {
-                    Text("Add Waypoint")
-                }
+            // Data Info Panel (Distance/Bearing)
+            if (compassState.selectedWaypoint != null) {
+                val distance = compassState.getDistanceToSelectedWaypoint()
+                val bearing = compassState.getBearingToSelectedWaypoint()
+                
+                DataHudPanel(
+                    distance = distance,
+                    bearing = bearing
+                )
+            } else {
+                // Spacer to keep layout stable
+                Spacer(modifier = Modifier.height(100.dp))
             }
-        }
 
-        // Waypoint selection
-        if (compassState.waypoints.isNotEmpty()) {
-            Card(
+            // Waypoint Selection Grid
+            if (compassState.waypoints.isNotEmpty()) {
+                WaypointSelectionGrid(
+                    waypoints = compassState.waypoints,
+                    selectedIndex = compassState.selectedWaypointIndex,
+                    onSelect = { index -> compassState.selectedWaypointIndex = index },
+                    onClear = { compassState.showClearDialog = true }
+                )
+            } else {
+                Spacer(modifier = Modifier.height(60.dp))
+            }
+
+            // Control Buttons
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Select Waypoint:",
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        compassState.waypoints.forEachIndexed { index, waypoint ->
-                            FilterChip(
-                                selected = compassState.selectedWaypointIndex == index,
-                                onClick = {
-                                    compassState.selectedWaypointIndex = index
-                                },
-                                label = { Text("WP${index + 1}") },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                    
-                    Button(
+                CyberButton(
+                    text = if (compassState.isTracking) "ABORT TRACKING" else "INITIATE TRACK",
+                    onClick = { compassState.isTracking = !compassState.isTracking },
+                    isWarning = compassState.isTracking,
+                    modifier = Modifier.weight(1f)
+                )
+
+                if (compassState.isTracking) {
+                    CyberButton(
+                        text = "MARK WAYPOINT",
                         onClick = {
-                            // Show confirmation dialog handled by state
-                            compassState.showClearDialog = true
+                            compassState.currentLocation?.let { location ->
+                                val newWaypoint = Waypoint(
+                                    latitude = location.latitude,
+                                    longitude = location.longitude
+                                )
+                                val updatedWaypoints = compassState.waypoints + newWaypoint
+                                compassState.waypoints = updatedWaypoints
+                                waypointRepository.saveWaypoints(updatedWaypoints)
+                            }
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Text("Clear Waypoints")
-                    }
+                        enabled = compassState.currentLocation != null,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
+            
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         // Clear confirmation dialog
         if (compassState.showClearDialog) {
-            AlertDialog(
-                onDismissRequest = { compassState.showClearDialog = false },
-                title = { Text("Clear Waypoints") },
-                text = { Text("Are you sure you want to clear all waypoints? This cannot be undone.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            compassState.waypoints = emptyList()
-                            compassState.selectedWaypointIndex = null
-                            waypointRepository.clearWaypoints()
-                            compassState.showClearDialog = false
-                        }
-                    ) {
-                        Text("Clear", color = MaterialTheme.colorScheme.error)
-                    }
+            CyberAlertDialog(
+                title = "PURGE DATA?",
+                text = "CONFIRM DELETION OF ALL WAYPOINT COORDINATES. THIS ACTION IS IRREVERSIBLE.",
+                onConfirm = {
+                    compassState.waypoints = emptyList()
+                    compassState.selectedWaypointIndex = null
+                    waypointRepository.clearWaypoints()
+                    compassState.showClearDialog = false
                 },
-                dismissButton = {
-                    TextButton(
-                        onClick = { compassState.showClearDialog = false }
-                    ) {
-                        Text("Cancel")
-                    }
-                }
+                onDismiss = { compassState.showClearDialog = false }
             )
         }
     }
 }
 
 /**
- * Custom compass view composable that displays a compass with N/S/E/W directions,
- * waypoints as colored circles, and navigation arrow to selected waypoint.
- * The view is forced to be square and supports touch input for waypoint selection
- * and pinch-to-zoom for scale adjustment.
+ * Custom Radar HUD View (Replaces CompassView)
  */
 @Composable
-fun CompassView(
+fun RadarHudView(
     compassState: CompassState,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    val circleRadiusPx = with(density) { 25.dp.toPx() }
-    val selectedCircleRadiusPx = with(density) { 25.dp.toPx() }
-    val unselectedCircleRadiusPx = with(density) { 20.dp.toPx() }
-    val borderWidthPx = with(density) { 3.dp.toPx() }
-    val arrowStrokeWidthPx = with(density) { 4.dp.toPx() }
-    val arrowHeadSizePx = with(density) { 15.dp.toPx() }
-    val compassTextSizePx = with(density) { 32.sp.toPx() }
+    
+    // Animation for scanning line
+    val infiniteTransition = rememberInfiniteTransition(label = "RadarScan")
+    val scanAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing)
+        ),
+        label = "ScanAngle"
+    )
 
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    Canvas(
+        modifier = modifier
+            .pointerInput(Unit) {
+                detectTapGestures { tapOffset ->
+                    handleRadarTap(tapOffset, compassState, size.width.toFloat(), size.height.toFloat())
+                }
+            }
+            .pointerInput(compassState.scaleMeters) {
+                detectTransformGestures { _, _, zoom, _ ->
+                    val newScale = (compassState.scaleMeters / zoom).coerceIn(500f, 2000f)
+                    compassState.scaleMeters = newScale
+                }
+            }
     ) {
-        Canvas(
-            modifier = modifier
-                .pointerInput(Unit) {
-                    detectTapGestures { tapOffset ->
-                        // Handle tap to select waypoint
-                        val size = size
-                        val centerX = size.width / 2
-                        val centerY = size.height / 2
-                        val maxRadius = min(size.width, size.height) / 2
+        val centerX = size.width / 2
+        val centerY = size.height / 2
+        val radius = min(size.width, size.height) / 2
+        val radarRadius = radius * 0.9f
 
-                        compassState.currentLocation?.let { location ->
-                            compassState.getWaypointsInRange().forEach { waypoint ->
-                                val waypointLocation = Location("").apply {
-                                    latitude = waypoint.latitude
-                                    longitude = waypoint.longitude
-                                }
-                                val distance = location.distanceTo(waypointLocation)
-                                val bearing = location.bearingTo(waypointLocation)
+        // Draw Outer Ring
+        drawCircle(
+            color = NeonCyan,
+            radius = radarRadius,
+            center = Offset(centerX, centerY),
+            style = Stroke(width = 2.dp.toPx())
+        )
+        
+        // Draw Inner Rings
+        drawCircle(
+            color = NeonCyan.copy(alpha = 0.5f),
+            radius = radarRadius * 0.66f,
+            center = Offset(centerX, centerY),
+            style = Stroke(width = 1.dp.toPx())
+        )
+        drawCircle(
+            color = NeonCyan.copy(alpha = 0.3f),
+            radius = radarRadius * 0.33f,
+            center = Offset(centerX, centerY),
+            style = Stroke(width = 1.dp.toPx())
+        )
 
-                                // Convert to canvas coordinates (accounting for compass rotation)
-                                val bearingRad = Math.toRadians(bearing.toDouble())
-                                val radius = (distance / compassState.scaleMeters) * maxRadius
-                                
-                                // Calculate waypoint position in rotated coordinate system
-                                val waypointX = centerX + (radius * sin(bearingRad)).toFloat()
-                                val waypointY = centerY - (radius * cos(bearingRad)).toFloat()
+        // Draw Crosshairs
+        drawLine(
+            color = NeonCyan.copy(alpha = 0.3f),
+            start = Offset(centerX - radarRadius, centerY),
+            end = Offset(centerX + radarRadius, centerY),
+            strokeWidth = 1.dp.toPx()
+        )
+        drawLine(
+            color = NeonCyan.copy(alpha = 0.3f),
+            start = Offset(centerX, centerY - radarRadius),
+            end = Offset(centerX, centerY + radarRadius),
+            strokeWidth = 1.dp.toPx()
+        )
 
-                                // Rotate tap coordinates back to match waypoint coordinates
-                                val angleRad = Math.toRadians(-compassState.compassRotation.toDouble())
-                                val dx = tapOffset.x - centerX
-                                val dy = tapOffset.y - centerY
-                                val rotatedX = centerX + (dx * cos(angleRad) - dy * sin(angleRad)).toFloat()
-                                val rotatedY = centerY + (dx * sin(angleRad) + dy * cos(angleRad)).toFloat()
+        // Save canvas for rotation
+        drawContext.canvas.save()
 
-                                // Check if tap is within waypoint circle
-                                val distanceToWaypoint = sqrt(
-                                    (rotatedX - waypointX).pow(2) + 
-                                    (rotatedY - waypointY).pow(2)
-                                )
-
-                                if (distanceToWaypoint <= circleRadiusPx) {
-                                    // Find the actual index in full waypoints list
-                                    val actualIndex = compassState.waypoints.indexOf(waypoint)
-                                    if (actualIndex >= 0) {
-                                        compassState.selectedWaypointIndex = actualIndex
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                .pointerInput(compassState.scaleMeters) {
-                    detectTransformGestures { _, _, zoom, _ ->
-                        // Handle pinch to zoom
-                        val newScale = (compassState.scaleMeters / zoom).coerceIn(500f, 2000f)
-                        compassState.scaleMeters = newScale
-                    }
-                }
+        // Rotate for Compass Heading
+        rotate(
+            degrees = compassState.compassRotation,
+            pivot = Offset(centerX, centerY)
         ) {
-            val size = size
-            val centerX = size.width / 2
-            val centerY = size.height / 2
-            val radius = min(size.width, size.height) / 2
+            // Draw Cardinal Directions (Technical Style)
+            val directions = listOf(
+                "N" to 0f, "E" to 90f, "S" to 180f, "W" to 270f
+            )
+            val paint = android.graphics.Paint().apply {
+                textAlign = android.graphics.Paint.Align.CENTER
+                textSize = 24.sp.toPx()
+                typeface = android.graphics.Typeface.MONOSPACE
+                isFakeBoldText = true
+            }
 
-            // Save canvas state
-            drawContext.canvas.save()
+            directions.forEach { (label, angle) ->
+                val angleRad = Math.toRadians(angle.toDouble())
+                val textX = centerX + (radarRadius * 1.1f * sin(angleRad)).toFloat()
+                val textY = centerY - (radarRadius * 1.1f * cos(angleRad)).toFloat()
 
-            // Rotate canvas based on device orientation
-            rotate(
-                degrees = compassState.compassRotation,
-                pivot = Offset(centerX, centerY)
-            ) {
-                // Draw compass background circle
-                drawCircle(
-                    color = Color.LightGray.copy(alpha = 0.3f),
-                    radius = radius,
-                    center = Offset(centerX, centerY)
+                paint.color = if (label == "N") NeonMagenta.toArgb() else NeonCyan.toArgb()
+                
+                drawContext.canvas.nativeCanvas.drawText(label, textX, textY + 10f, paint) // +10f for vertical centering approximation
+            }
+            
+            // Draw Degree Ticks
+            for (i in 0 until 360 step 30) {
+                if (i % 90 == 0) continue // Skip cardinals
+                val angleRad = Math.toRadians(i.toDouble())
+                val startX = centerX + (radarRadius * 0.95f * sin(angleRad)).toFloat()
+                val startY = centerY - (radarRadius * 0.95f * cos(angleRad)).toFloat()
+                val endX = centerX + (radarRadius * 1.0f * sin(angleRad)).toFloat()
+                val endY = centerY - (radarRadius * 1.0f * cos(angleRad)).toFloat()
+                
+                drawLine(
+                    color = NeonCyan.copy(alpha = 0.6f),
+                    start = Offset(startX, startY),
+                    end = Offset(endX, endY),
+                    strokeWidth = 2.dp.toPx()
                 )
+            }
 
-                // Draw compass directions
-                val directions = listOf(
-                    "N" to 0f,
-                    "E" to 90f,
-                    "S" to 180f,
-                    "W" to 270f
-                )
-
-                directions.forEach { (label, angle) ->
-                    val angleRad = Math.toRadians(angle.toDouble())
-                    val textX = centerX + (radius * 0.85f * sin(angleRad)).toFloat()
-                    val textY = centerY - (radius * 0.85f * cos(angleRad)).toFloat()
-
-                    val color = if (label == "N") {
-                        Color.Red // Highlight North
-                    } else {
-                        Color.Black
+            // Draw Waypoints (Blips)
+            compassState.currentLocation?.let { location ->
+                compassState.getWaypointsInRange().forEach { waypoint ->
+                    val waypointLocation = Location("").apply {
+                        latitude = waypoint.latitude
+                        longitude = waypoint.longitude
                     }
+                    val distance = location.distanceTo(waypointLocation)
+                    val bearing = location.bearingTo(waypointLocation)
+                    
+                    val bearingRad = Math.toRadians(bearing.toDouble())
+                    val scanScale = distance / compassState.scaleMeters
+                    val blipDistance = scanScale * radarRadius // Map distance to radius inside radar
+                    
+                    val blipX = centerX + (blipDistance * sin(bearingRad)).toFloat()
+                    val blipY = centerY - (blipDistance * cos(bearingRad)).toFloat()
 
-                    drawContext.canvas.nativeCanvas.apply {
-                        save()
-                        translate(textX, textY)
-                        val paint = android.graphics.Paint().apply {
-                            textAlign = android.graphics.Paint.Align.CENTER
-                            textSize = compassTextSizePx
-                            setColor(color.toArgb())
-                        }
-                        drawText(label, 0f, 0f, paint)
-                        restore()
-                    }
-                }
+                    // Pulse effect for selected
+                    val isSelected = compassState.selectedWaypoint == waypoint
+                    val blipColor = if (isSelected) NeonMagenta else NeonCyan
+                    val blipRadius = if (isSelected) 8.dp.toPx() else 5.dp.toPx()
 
-                // Draw waypoints
-                compassState.currentLocation?.let { location ->
-                    compassState.getWaypointsInRange().forEach { waypoint ->
-                        val waypointLocation = Location("").apply {
-                            latitude = waypoint.latitude
-                            longitude = waypoint.longitude
-                        }
-                        val distance = location.distanceTo(waypointLocation)
-                        val bearing = location.bearingTo(waypointLocation)
-
-                        // Convert to canvas coordinates
-                        val bearingRad = Math.toRadians(bearing.toDouble())
-                        val waypointRadius = (distance / compassState.scaleMeters) * radius
-                        val waypointX = centerX + (waypointRadius * sin(bearingRad)).toFloat()
-                        val waypointY = centerY - (waypointRadius * cos(bearingRad)).toFloat()
-
-                        // Check if this is the selected waypoint
-                        val isSelected = compassState.selectedWaypoint == waypoint
-                        val circleColor = if (isSelected) Color.Red else Color.Blue
-                        val circleRadius = if (isSelected) selectedCircleRadiusPx else unselectedCircleRadiusPx
-
-                        // Draw waypoint circle
+                    drawCircle(
+                        color = blipColor,
+                        radius = blipRadius,
+                        center = Offset(blipX, blipY)
+                    )
+                    
+                    if (isSelected) {
                         drawCircle(
-                            color = circleColor,
-                            radius = circleRadius,
-                            center = Offset(waypointX, waypointY)
+                            color = blipColor,
+                            radius = blipRadius * 1.5f,
+                            center = Offset(blipX, blipY),
+                            style = Stroke(width = 2.dp.toPx())
                         )
-
-                        // Draw border for selected waypoint
-                        if (isSelected) {
-                            val borderRadiusPx = with(density) { (circleRadius + 5.dp.toPx()) }
-                            drawCircle(
-                                color = Color.Yellow,
-                                radius = borderRadiusPx,
-                                style = Stroke(width = borderWidthPx)
-                            )
-                        }
-                    }
-
-                    // Draw navigation arrow to selected waypoint
-                    compassState.selectedWaypoint?.let { selectedWaypoint ->
-                        val selectedLocation = Location("").apply {
-                            latitude = selectedWaypoint.latitude
-                            longitude = selectedWaypoint.longitude
-                        }
-                        val bearing = location.bearingTo(selectedLocation)
-                        val bearingRad = Math.toRadians(bearing.toDouble())
-
-                        // Draw arrow from center pointing to waypoint
-                        val arrowLength = radius * 0.7f
-                        val arrowEndX = centerX + (arrowLength * sin(bearingRad)).toFloat()
-                        val arrowEndY = centerY - (arrowLength * cos(bearingRad)).toFloat()
-
-                        // Draw arrow line
+                        
+                        // Draw navigation line to blip
                         drawLine(
-                            color = Color.Green,
+                            brush = Brush.linearGradient(
+                                colors = listOf(NeonMagenta.copy(alpha = 0f), NeonMagenta),
+                                start = Offset(centerX, centerY),
+                                end = Offset(blipX, blipY)
+                            ),
                             start = Offset(centerX, centerY),
-                            end = Offset(arrowEndX, arrowEndY),
-                            strokeWidth = arrowStrokeWidthPx
+                            end = Offset(blipX, blipY),
+                            strokeWidth = 2.dp.toPx()
                         )
-
-                        // Draw arrowhead
-                        val angle1 = bearingRad + Math.PI - Math.PI / 6
-                        val angle2 = bearingRad + Math.PI + Math.PI / 6
-
-                        val path = Path().apply {
-                            moveTo(arrowEndX, arrowEndY)
-                            lineTo(
-                                arrowEndX + (arrowHeadSizePx * sin(angle1)).toFloat(),
-                                arrowEndY - (arrowHeadSizePx * cos(angle1)).toFloat()
-                            )
-                            lineTo(
-                                arrowEndX + (arrowHeadSizePx * sin(angle2)).toFloat(),
-                                arrowEndY - (arrowHeadSizePx * cos(angle2)).toFloat()
-                            )
-                            close()
-                        }
-                        drawPath(path, color = Color.Green)
                     }
                 }
             }
+        }
+        
+        drawContext.canvas.restore()
 
-            // Restore canvas state
-            drawContext.canvas.restore()
+        // Draw Player Centroid
+        drawCircle(
+            color = Color.White,
+            radius = 4.dp.toPx(),
+            center = Offset(centerX, centerY)
+        )
+        
+        // Draw Scanning Sweep
+        rotate(scanAngle, pivot = Offset(centerX, centerY)) {
+            drawArc(
+                brush = Brush.sweepGradient(
+                    0.0f to Color.Transparent,
+                    0.7f to Color.Transparent,
+                    1.0f to NeonCyan.copy(alpha = 0.5f),
+                    center = Offset(centerX, centerY)
+                ),
+                startAngle = -90f,
+                sweepAngle = 90f,
+                useCenter = true,
+                topLeft = Offset(centerX - radarRadius, centerY - radarRadius),
+                size = androidx.compose.ui.geometry.Size(radarRadius * 2, radarRadius * 2)
+            )
         }
     }
 }
 
+// Logic extract for handling taps (similar to previous CompassView)
+private fun handleRadarTap(
+    tapOffset: Offset,
+    compassState: CompassState,
+    width: Float,
+    height: Float
+) {
+    val centerX = width / 2
+    val centerY = height / 2
+    val minDimension = min(width, height) / 2
+    val radarRadius = minDimension * 0.9f 
+
+    compassState.currentLocation?.let { location ->
+        compassState.getWaypointsInRange().forEach { waypoint ->
+            val waypointLocation = Location("").apply {
+                latitude = waypoint.latitude
+                longitude = waypoint.longitude
+            }
+            val distance = location.distanceTo(waypointLocation)
+            val bearing = location.bearingTo(waypointLocation)
+
+            val bearingRad = Math.toRadians(bearing.toDouble())
+            val blipDistance = (distance / compassState.scaleMeters) * radarRadius
+            
+            // Calculate waypoint position in rotated coordinate system (screen relative)
+            // But wait! We need to account for compass rotation to map screen tap to world bearing
+            // Or simpler: project waypoint to screen coordinates like we do in Draw
+            
+            // Projection logic derived from Draw Loop:
+            // 1. Waypoint relative to North
+            val waypointX_North = centerX + (blipDistance * sin(bearingRad)).toFloat()
+            val waypointY_North = centerY - (blipDistance * cos(bearingRad)).toFloat()
+            
+            // 2. Rotate this point around center by compassRotation to get Screen Coordinates
+            val rotationRad = Math.toRadians(compassState.compassRotation.toDouble())
+            val dx = waypointX_North - centerX
+            val dy = waypointY_North - centerY
+            
+            val screenX = centerX + (dx * cos(rotationRad) - dy * sin(rotationRad)).toFloat()
+            val screenY = centerY + (dx * sin(rotationRad) + dy * cos(rotationRad)).toFloat()
+            
+            // Check distance from tap
+            val touchDist = sqrt((tapOffset.x - screenX).pow(2) + (tapOffset.y - screenY).pow(2))
+            
+            // 30dp touch target roughly
+            if (touchDist < 50f) { 
+                val actualIndex = compassState.waypoints.indexOf(waypoint)
+                if (actualIndex >= 0) {
+                    compassState.selectedWaypointIndex = actualIndex
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Futuristic Button Component
+ */
+@Composable
+fun CyberButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isWarning: Boolean = false,
+    enabled: Boolean = true
+) {
+    val mainColor = if (isWarning) NeonMagenta else NeonCyan
+    
+    Box(
+        modifier = modifier
+            .height(50.dp)
+            .clip(CutCornerShape(topStart = 10.dp, bottomEnd = 10.dp))
+            .background(mainColor.copy(alpha = 0.1f))
+            .border(1.dp, mainColor, CutCornerShape(topStart = 10.dp, bottomEnd = 10.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (enabled) mainColor else Color.Gray,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+/**
+ * Data Display Panel
+ */
+@Composable
+fun DataHudPanel(
+    distance: Float?,
+    bearing: Float?
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, NeonCyan, CutCornerShape(4.dp))
+            .background(DarkGlass)
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceAround
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = "DISTANCE", style = MaterialTheme.typography.labelSmall, color = TextUnselected)
+            Text(
+                text = "${distance?.toInt() ?: 0} M",
+                style = MaterialTheme.typography.headlineLarge,
+                color = NeonCyan
+            )
+        }
+        
+        Box(
+            modifier = Modifier
+                .width(1.dp)
+                .height(40.dp)
+                .background(NeonCyan.copy(alpha = 0.5f))
+        )
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = "BEARING", style = MaterialTheme.typography.labelSmall, color = TextUnselected)
+            Text(
+                text = "${bearing?.toInt() ?: 0}°",
+                style = MaterialTheme.typography.headlineLarge,
+                color = NeonMagenta
+            )
+        }
+    }
+}
+
+/**
+ * Grid Selection for Waypoints
+ */
+@Composable
+fun WaypointSelectionGrid(
+    waypoints: List<Waypoint>,
+    selectedIndex: Int?,
+    onSelect: (Int) -> Unit,
+    onClear: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, GridLine, CutCornerShape(4.dp))
+            .padding(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "TARGETS DETECTED: ${waypoints.size}", color = NeonCyan, style = MaterialTheme.typography.labelSmall)
+            Text(
+                text = "CLEAR ALL",
+                color = NeonMagenta,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.clickable { onClear() }
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // Horizontal scrollable row for chips if many, or grid. 
+        // For simplicity with variable width, using a FlowRow-like structure or just a simple Row with weight
+        // Since we don't have FlowRow in older material3 stable easily, let's use a Row with horizontal scroll
+        androidx.compose.foundation.lazy.LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(waypoints.size) { index ->
+                val isSelected = selectedIndex == index
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CutCornerShape(4.dp))
+                        .background(if (isSelected) NeonCyan else GridLine)
+                        .clickable { onSelect(index) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "${index + 1}",
+                        color = if (isSelected) Color.Black else NeonCyan,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Custom Alert Dialog
+ */
+@Composable
+fun CyberAlertDialog(
+    title: String,
+    text: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DeepBlack,
+        title = { Text(title, color = NeonMagenta, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace) },
+        text = { Text(text, color = NeonCyan, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace) },
+        confirmButton = {
+            CyberButton(
+                text = "CONFIRM",
+                onClick = onConfirm,
+                isWarning = true,
+                modifier = Modifier.width(100.dp)
+            )
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCEL", color = TextUnselected)
+            }
+        },
+        shape = CutCornerShape(16.dp),
+        modifier = Modifier.border(1.dp, NeonMagenta, CutCornerShape(16.dp))
+    )
+}
+
+/**
+ * Decorative Grid Background
+ */
+@Composable
+fun GridBackground() {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val step = 40.dp.toPx()
+        val width = size.width
+        val height = size.height
+        
+        for (x in 0..width.toInt() step step.toInt()) {
+            drawLine(
+                color = GridLine,
+                start = Offset(x.toFloat(), 0f),
+                end = Offset(x.toFloat(), height),
+                strokeWidth = 1f
+            )
+        }
+        
+        for (y in 0..height.toInt() step step.toInt()) {
+            drawLine(
+                color = GridLine,
+                start = Offset(0f, y.toFloat()),
+                end = Offset(width, y.toFloat()),
+                strokeWidth = 1f
+            )
+        }
+    }
+}
