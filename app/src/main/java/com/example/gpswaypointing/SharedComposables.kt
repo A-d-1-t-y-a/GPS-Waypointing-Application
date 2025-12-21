@@ -264,7 +264,7 @@ fun WarpSpeedBackground() {
             
             // Star size grows as it gets closer
             val starSize = (currentRadius / maxRadius) * 4.dp.toPx()
-            val starAlpha = (currentRadius / maxRadius).coerceIn(0.0, 1.0).toFloat()
+            val starAlpha = (currentRadius / maxRadius).coerceIn(0f, 1f)
 
             drawCircle(
                 color = if (i % 5 == 0) NeonMagenta else NeonCyan,
