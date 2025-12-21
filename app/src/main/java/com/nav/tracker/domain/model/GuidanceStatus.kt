@@ -1,6 +1,6 @@
-package com.orion.navigator.domain.model
+package com.nav.tracker.domain.model
 
-import com.orion.navigator.data.NavBeacon
+import com.nav.tracker.data.NavBeacon
 
 sealed class GuidanceStatus {
     object Standby : GuidanceStatus()

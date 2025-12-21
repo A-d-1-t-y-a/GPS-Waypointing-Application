@@ -1,4 +1,4 @@
-package com.orion.navigator.data
+package com.nav.tracker.data
 
 /**
  * Data class representing a navigation beacon (waypoint).

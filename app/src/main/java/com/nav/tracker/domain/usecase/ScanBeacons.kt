@@ -1,7 +1,7 @@
-package com.orion.navigator.domain.usecase
+package com.nav.tracker.domain.usecase
 
 import android.location.Location
-import com.orion.navigator.data.NavBeacon
+import com.nav.tracker.data.NavBeacon
 
 class ScanBeacons {
     operator fun invoke(list: List<NavBeacon>, center: Location, radius: Float): List<NavBeacon> {

@@ -1,7 +1,6 @@
-package com.orion.navigator.theme
+package com.nav.tracker.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -11,34 +10,34 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val OrionScheme = darkColorScheme(
-    primary = OrionPalette.CoreCyan,
-    background = OrionPalette.VoidBlack,
-    surface = OrionPalette.VoidGrey,
-    error = OrionPalette.SysError,
+private val NavScheme = darkColorScheme(
+    primary = NavPalette.CoreCyan,
+    background = NavPalette.VoidBlack,
+    surface = NavPalette.VoidGrey,
+    error = NavPalette.SysError,
     onPrimary = Color.Black,
-    onBackground = OrionPalette.TextMain,
-    onSurface = OrionPalette.TextMain
+    onBackground = NavPalette.TextMain,
+    onSurface = NavPalette.TextMain
 )
 
 @Composable
-fun OrionTheme(
+fun NavTheme(
     content: @Composable () -> Unit
 ) {
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = OrionPalette.VoidBlack.toArgb()
-            window.navigationBarColor = OrionPalette.VoidBlack.toArgb()
+            window.statusBarColor = NavPalette.VoidBlack.toArgb()
+            window.navigationBarColor = NavPalette.VoidBlack.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
             WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = false
         }
     }
 
     MaterialTheme(
-        colorScheme = OrionScheme,
-        typography = OrionTypography,
+        colorScheme = NavScheme,
+        typography = NavTypography,
         content = content
     )
 }

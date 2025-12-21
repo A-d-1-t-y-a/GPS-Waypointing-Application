@@ -1,21 +1,32 @@
-package com.orion.navigator
+package com.nav.tracker
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import com.orion.navigator.data.BeaconRegistry
-import com.orion.navigator.service.GyroscopeMonitor
-import com.orion.navigator.service.PositionMonitor
-import com.orion.navigator.theme.OrionTheme
+import com.nav.tracker.data.BeaconRegistry
+import com.nav.tracker.service.GyroscopeMonitor
+import com.nav.tracker.service.PositionMonitor
+import com.nav.tracker.theme.NavTheme
 
+/**
+ * Main Entry point of the Application.
+ * Initializes core services (Position, Gyroscope, Registry) and sets up the UI.
+ */
 class MainActivity : ComponentActivity() {
     private lateinit var pMon: PositionMonitor
     private lateinit var gMon: GyroscopeMonitor
     private lateinit var reg: BeaconRegistry
 
+    /**
+     * Activity Result Launcher for requesting permissions.
+     */
     private val perms = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
+    /**
+     * Called when the activity is starting.
+     * Instantiates services and checks permissions.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -28,7 +39,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            OrionTheme {
+            NavTheme {
                 HudInterface(pMon, gMon, reg)
             }
         }

@@ -1,4 +1,4 @@
-package com.orion.navigator.data
+package com.nav.tracker.data
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
@@ -8,11 +8,16 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * Registry for persisting navigational beacons.
+ * Registry for persisting navigational beacons (waypoints).
+ * Handles File I/O for saving and retrieving beacons.
  */
 class BeaconRegistry(private val ctx: Context) {
     private val storeFile = "beacons_db.json"
 
+    /**
+     * Saves list of beacons to internal storage.
+     * @param list List of NavBeacons to save.
+     */
     suspend fun commitBeacons(list: List<NavBeacon>) = withContext(Dispatchers.IO) {
         try {
             val arr = JSONArray()
@@ -31,6 +36,10 @@ class BeaconRegistry(private val ctx: Context) {
         }
     }
 
+    /**
+     * Retrieves list of beacons from internal storage.
+     * @return List of NavBeacons.
+     */
     suspend fun retrieveBeacons(): List<NavBeacon> = withContext(Dispatchers.IO) {
         return@withContext try {
             val f = File(ctx.filesDir, storeFile)
@@ -54,6 +63,9 @@ class BeaconRegistry(private val ctx: Context) {
         }
     }
 
+    /**
+     * Deletes all saved beacons.
+     */
     suspend fun wipeRegistry() = withContext(Dispatchers.IO) {
         try {
             val f = File(ctx.filesDir, storeFile)

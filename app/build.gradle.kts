@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.orion.navigator"
+    namespace = "com.nav.tracker"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.orion.navigator"
+        applicationId = "com.nav.tracker"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
@@ -75,4 +75,3 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
-

@@ -1,4 +1,4 @@
-package com.orion.navigator.service
+package com.nav.tracker.service
 
 import android.content.Context
 import android.hardware.Sensor

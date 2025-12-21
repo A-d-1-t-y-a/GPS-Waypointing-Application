@@ -1,7 +1,7 @@
-package com.orion.navigator.viewmodel
+package com.nav.tracker.viewmodel
 
 import androidx.lifecycle.ViewModel
-import com.orion.navigator.service.GyroscopeMonitor
+import com.nav.tracker.service.GyroscopeMonitor
 import kotlinx.coroutines.flow.Flow
 
 class HudViewModel(

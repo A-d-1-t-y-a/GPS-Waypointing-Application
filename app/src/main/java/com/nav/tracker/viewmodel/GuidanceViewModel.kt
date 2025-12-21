@@ -1,11 +1,11 @@
-package com.orion.navigator.viewmodel
+package com.nav.tracker.viewmodel
 
 import android.location.Location
 import androidx.lifecycle.ViewModel
-import com.orion.navigator.data.NavBeacon
-import com.orion.navigator.domain.model.GuidanceStatus
-import com.orion.navigator.domain.usecase.MeasureBearing
-import com.orion.navigator.domain.usecase.MeasureDistance
+import com.nav.tracker.data.NavBeacon
+import com.nav.tracker.domain.model.GuidanceStatus
+import com.nav.tracker.domain.usecase.MeasureBearing
+import com.nav.tracker.domain.usecase.MeasureDistance
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 

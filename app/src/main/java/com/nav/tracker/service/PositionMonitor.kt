@@ -1,4 +1,4 @@
-package com.orion.navigator.service
+package com.nav.tracker.service
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -11,9 +11,18 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
+/**
+ * Service class responsible for tracking user position.
+ * Wraps LocationManager.
+ */
 class PositionMonitor(private val ctx: Context) {
     private val mgr = ctx.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
+    /**
+     * Starts tracking location via GPS.
+     * Emits location updates every 5 seconds.
+     * @return Flow of Location objects.
+     */
     @SuppressLint("MissingPermission")
     fun trackPosition(): Flow<Location> = callbackFlow {
         val listener = object : LocationListener {
@@ -31,6 +40,9 @@ class PositionMonitor(private val ctx: Context) {
         awaitClose { mgr.removeUpdates(listener) }
     }
 
+    /**
+     * Checks if location permissions are granted.
+     */
     fun hasPerms(): Boolean {
         return androidx.core.content.ContextCompat.checkSelfPermission(
             ctx, android.Manifest.permission.ACCESS_FINE_LOCATION
